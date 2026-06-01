@@ -5,7 +5,6 @@ import {
   TrendingUp, Send 
 } from 'lucide-react';
 import { useAppStore } from '../store/useAppStore';
-import type { Student } from '../store/useAppStore';
 import { ResponsiveContainer, BarChart, CartesianGrid, XAxis, YAxis, Tooltip, Bar } from 'recharts';
 
 export default function Modals() {
@@ -61,8 +60,10 @@ export default function Modals() {
     if (amount <= 0 || !entradaConcepto.trim()) return;
 
     let studentName = '-';
-    let sId = Number(entradaStudentId);
-    if (sId) {
+    const numId = Number(entradaStudentId);
+    const sId = (isNaN(numId) || entradaStudentId === '') ? (entradaStudentId || undefined) : numId;
+
+    if (sId !== undefined) {
       const student = students.find(s => s.id === sId);
       if (student) {
         studentName = student.name;

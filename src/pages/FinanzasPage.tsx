@@ -2,13 +2,13 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   ArrowUpRight, ArrowDownRight, Wallet, AlertTriangle, Users, 
-  CreditCard, Filter, CheckCircle2, AlertCircle, BookmarkCheck,
-  TrendingUp, BarChart3, PieChart as PieIcon, Percent, ChevronDown, ChevronUp
+  CreditCard, Filter, BookmarkCheck,
+  TrendingUp, BarChart3, PieChart as PieIcon, Percent, FileText
 } from 'lucide-react';
 import { useAppStore } from '../store/useAppStore';
 import { 
   ResponsiveContainer, AreaChart, Area, CartesianGrid, XAxis, YAxis, Tooltip, 
-  PieChart, Pie, Cell, Legend
+  PieChart, Pie, Cell, BarChart, Bar
 } from 'recharts';
 
 export default function FinanzasPage() {
@@ -112,6 +112,60 @@ export default function FinanzasPage() {
   // 4. Métrica de Cobranza (Recuperación)
   const totalFacturado = totalIngresos + totalAdeudos;
   const recoveryRate = totalFacturado > 0 ? Math.round((totalIngresos / totalFacturado) * 100) : 0;
+
+  // 5. Proyección de Ingresos Futuros (Forecasting de Cuotas)
+  const forecastMap: Record<string, number> = {};
+
+  students.forEach(student => {
+    if (student.cuotas && student.cuotas.length > 0) {
+      student.cuotas.forEach(c => {
+        if (c.status !== 'Pagada') {
+          const date = new Date(c.fechaVencimiento);
+          const yyyymm = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+          forecastMap[yyyymm] = (forecastMap[yyyymm] || 0) + c.monto;
+        }
+      });
+    } else {
+      // Fallback: simular cuotas futuras al vuelo para alumnos antiguos o mockeados
+      const totalCost = student.paymentPlan?.totalCost || 0;
+      const amountPaid = student.paymentPlan?.amountPaid || 0;
+      const plazosTotales = student.paymentPlan?.planPagosTotales || 1;
+      const valorCuota = totalCost / plazosTotales;
+
+      let saldoAbonado = amountPaid;
+      for (let index = 0; index < plazosTotales; index++) {
+        const fechaVencimientoObj = new Date();
+        fechaVencimientoObj.setDate(fechaVencimientoObj.getDate() + (index * 30));
+
+        let isPagada = false;
+        if (saldoAbonado >= valorCuota) {
+          isPagada = true;
+          saldoAbonado -= valorCuota;
+        } else if (saldoAbonado > 0) {
+          isPagada = true;
+          saldoAbonado = 0;
+        }
+
+        if (!isPagada) {
+          const yyyymm = `${fechaVencimientoObj.getFullYear()}-${String(fechaVencimientoObj.getMonth() + 1).padStart(2, '0')}`;
+          forecastMap[yyyymm] = (forecastMap[yyyymm] || 0) + valorCuota;
+        }
+      }
+    }
+  });
+
+  // Obtener meses ordenados cronológicamente
+  const sortedMonths = Object.keys(forecastMap).sort();
+
+  const forecastChartData = sortedMonths.map(yyyymm => {
+    const [year, month] = yyyymm.split('-').map(Number);
+    const dateObj = new Date(year, month - 1, 1);
+    const name = dateObj.toLocaleString('es-MX', { month: 'short', year: '2-digit' });
+    return {
+      name: name.charAt(0).toUpperCase() + name.slice(1).replace('.', ''), // Capitalizar ej: "Jun 26"
+      monto: Math.round(forecastMap[yyyymm])
+    };
+  });
 
   // --- LÓGICA DE ALERTA DE MENSUALIDADES (HOY: 26 MAYO 2026) ---
   const today = new Date('2026-05-26');
@@ -250,8 +304,8 @@ export default function FinanzasPage() {
       {showAnalytics && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', marginBottom: '24px' }}>
           
-          {/* Fila 1: Tendencia de Balance y Eficiencia de Cobro */}
-          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '20px' }}>
+          {/* Fila 1: Historial de Caja (Timeline) y Proyección de Cobranza Futura (Forecast) */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
             
             {/* Gráfica de Tendencia (Timeline) */}
             <div className="bento-card" style={{ padding: '24px', display: 'flex', flexDirection: 'column' }}>
@@ -284,22 +338,58 @@ export default function FinanzasPage() {
               </div>
             </div>
 
+            {/* Gráfica de Proyección de Cobros Futuros (Forecast) */}
+            <div className="bento-card" style={{ padding: '24px', display: 'flex', flexDirection: 'column' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                <h3 style={{ fontSize: '16px', fontWeight: '600', color: 'var(--text-primary)', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <BarChart3 size={18} color="var(--brand-yellow)" /> Proyección de Cobros por Mensualidades
+                </h3>
+                <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Flujo de caja estimado</span>
+              </div>
+              
+              <div style={{ width: '100%', height: '240px' }}>
+                {forecastChartData.length > 0 ? (
+                  <ResponsiveContainer>
+                    <BarChart data={forecastChartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(0,0,0,0.05)" />
+                      <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fontSize: 11, fill: '#64748b'}} />
+                      <YAxis axisLine={false} tickLine={false} tick={{fontSize: 11, fill: '#64748b'}} tickFormatter={(value) => `$${value.toLocaleString()}`} />
+                      <Tooltip 
+                        contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: 'var(--shadow-md)', background: 'var(--bg-card)' }}
+                        formatter={(value: any) => [`$${value.toLocaleString()} MXN`, 'Esperado']}
+                      />
+                      <Bar dataKey="monto" fill="var(--brand-yellow)" radius={[6, 6, 0, 0]} maxBarSize={40} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', fontSize: '13px', color: 'var(--text-secondary)' }}>
+                    No hay cuotas programadas para los próximos meses.
+                  </div>
+                )}
+              </div>
+            </div>
+
+          </div>
+
+          {/* Fila 2: Eficiencia de Cobro y Distribución de Ingresos/Gastos */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.2fr 1.2fr', gap: '20px' }}>
+            
             {/* Métrica de Cobranza (Recovery Rate) */}
             <div className="bento-card" style={{ padding: '24px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', background: 'linear-gradient(135deg, var(--bg-card) 0%, rgba(59, 130, 246, 0.02) 100%)' }}>
               <div>
                 <h3 style={{ fontSize: '16px', fontWeight: '600', color: 'var(--text-primary)', margin: 0, display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
                   <Percent size={18} color="#10b981" /> Eficiencia de Cobro
                 </h3>
-                <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: 0 }}>Relación entre dinero cobrado y deudas vigentes.</p>
+                <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: 0 }}>Recaudación vs deudas vigentes.</p>
               </div>
 
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', margin: '20px 0' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', margin: '14px 0' }}>
                 
                 {/* Visual circular conic progress */}
                 <div style={{ 
                   position: 'relative', 
-                  width: '120px', 
-                  height: '120px', 
+                  width: '100px', 
+                  height: '100px', 
                   borderRadius: '50%', 
                   background: `conic-gradient(#10b981 ${recoveryRate * 3.6}deg, var(--border-color) 0deg)`,
                   display: 'flex',
@@ -308,8 +398,8 @@ export default function FinanzasPage() {
                   boxShadow: '0 4px 10px rgba(16, 185, 129, 0.1)'
                 }}>
                   <div style={{ 
-                    width: '94px', 
-                    height: '94px', 
+                    width: '78px', 
+                    height: '78px', 
                     borderRadius: '50%', 
                     background: 'var(--bg-card)', 
                     display: 'flex', 
@@ -317,29 +407,24 @@ export default function FinanzasPage() {
                     alignItems: 'center', 
                     justifyContent: 'center' 
                   }}>
-                    <span style={{ fontSize: '24px', fontWeight: '800', color: '#10b981' }}>{recoveryRate}%</span>
-                    <span style={{ fontSize: '9px', fontWeight: '600', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Recuperado</span>
+                    <span style={{ fontSize: '20px', fontWeight: '800', color: '#10b981' }}>{recoveryRate}%</span>
+                    <span style={{ fontSize: '8px', fontWeight: '600', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Recuperado</span>
                   </div>
                 </div>
               </div>
 
-              <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '14px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginBottom: '6px' }}>
+              <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '12px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', marginBottom: '4px' }}>
                   <span style={{ color: 'var(--text-secondary)' }}>Total Cobrado:</span>
                   <strong style={{ color: '#16a34a' }}>${totalIngresos.toLocaleString()}</strong>
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px' }}>
                   <span style={{ color: 'var(--text-secondary)' }}>Por Cobrar:</span>
                   <strong style={{ color: '#ca8a04' }}>${totalAdeudos.toLocaleString()}</strong>
                 </div>
               </div>
             </div>
 
-          </div>
-
-          {/* Fila 2: Distribución de Ingresos y Egresos */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
-            
             {/* Gráfica de Ingresos */}
             <div className="bento-card" style={{ padding: '24px', display: 'flex', flexDirection: 'column' }}>
               <h3 style={{ fontSize: '16px', fontWeight: '600', color: 'var(--text-primary)', margin: '0 0 16px 0', display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -347,7 +432,7 @@ export default function FinanzasPage() {
               </h3>
               
               <div style={{ display: 'flex', alignItems: 'center', gap: '20px', flex: 1 }}>
-                <div style={{ width: '130px', height: '130px', flexShrink: 0 }}>
+                <div style={{ width: '110px', height: '110px', flexShrink: 0 }}>
                   {incomeChartData.length > 0 ? (
                     <ResponsiveContainer>
                       <PieChart>
@@ -355,12 +440,12 @@ export default function FinanzasPage() {
                           data={incomeChartData}
                           cx="50%"
                           cy="50%"
-                          innerRadius={40}
-                          outerRadius={58}
+                          innerRadius={32}
+                          outerRadius={50}
                           paddingAngle={3}
                           dataKey="value"
                         >
-                          {incomeChartData.map((entry, index) => (
+                          {incomeChartData.map((_, index) => (
                             <Cell key={`cell-${index}`} fill={COLORS_INCOME[index % COLORS_INCOME.length]} />
                           ))}
                         </Pie>
@@ -368,26 +453,26 @@ export default function FinanzasPage() {
                       </PieChart>
                     </ResponsiveContainer>
                   ) : (
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', fontSize: '12px', color: 'var(--text-secondary)' }}>Sin datos</div>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', fontSize: '11px', color: 'var(--text-secondary)' }}>Sin datos</div>
                   )}
                 </div>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', flex: 1 }}>
-                  {incomeChartData.map((item, index) => {
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', flex: 1, overflow: 'hidden' }}>
+                  {incomeChartData.slice(0, 4).map((item, index) => {
                     const percentage = totalIngresos > 0 ? Math.round((item.value / totalIngresos) * 100) : 0;
                     const color = COLORS_INCOME[index % COLORS_INCOME.length];
                     return (
-                      <div key={item.name} style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px' }}>
-                          <span style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: '500', color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '140px' }} title={item.name}>
-                            <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: color, flexShrink: 0 }} />
+                      <div key={item.name} style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px' }}>
+                          <span style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: '500', color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '100px' }} title={item.name}>
+                            <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: color, flexShrink: 0 }} />
                             {item.name}
                           </span>
-                          <span style={{ color: 'var(--text-secondary)', fontSize: '11px', flexShrink: 0 }}>
-                            ${item.value.toLocaleString()} ({percentage}%)
+                          <span style={{ color: 'var(--text-secondary)', fontSize: '10px', flexShrink: 0 }}>
+                            ${item.value.toLocaleString()}
                           </span>
                         </div>
-                        <div style={{ width: '100%', height: '4px', background: 'var(--border-color)', borderRadius: '100px', overflow: 'hidden' }}>
+                        <div style={{ width: '100%', height: '3px', background: 'var(--border-color)', borderRadius: '100px', overflow: 'hidden' }}>
                           <div style={{ width: `${percentage}%`, height: '100%', background: color, borderRadius: '100px' }} />
                         </div>
                       </div>
@@ -404,7 +489,7 @@ export default function FinanzasPage() {
               </h3>
 
               <div style={{ display: 'flex', alignItems: 'center', gap: '20px', flex: 1 }}>
-                <div style={{ width: '130px', height: '130px', flexShrink: 0 }}>
+                <div style={{ width: '110px', height: '110px', flexShrink: 0 }}>
                   {expenseChartData.length > 0 ? (
                     <ResponsiveContainer>
                       <PieChart>
@@ -412,12 +497,12 @@ export default function FinanzasPage() {
                           data={expenseChartData}
                           cx="50%"
                           cy="50%"
-                          innerRadius={40}
-                          outerRadius={58}
+                          innerRadius={32}
+                          outerRadius={50}
                           paddingAngle={3}
                           dataKey="value"
                         >
-                          {expenseChartData.map((entry, index) => (
+                          {expenseChartData.map((_, index) => (
                             <Cell key={`cell-${index}`} fill={COLORS_EXPENSE[index % COLORS_EXPENSE.length]} />
                           ))}
                         </Pie>
@@ -425,26 +510,26 @@ export default function FinanzasPage() {
                       </PieChart>
                     </ResponsiveContainer>
                   ) : (
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', fontSize: '12px', color: 'var(--text-secondary)' }}>Sin datos</div>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', fontSize: '11px', color: 'var(--text-secondary)' }}>Sin datos</div>
                   )}
                 </div>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', flex: 1 }}>
-                  {expenseChartData.map((item, index) => {
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', flex: 1, overflow: 'hidden' }}>
+                  {expenseChartData.slice(0, 4).map((item, index) => {
                     const percentage = totalEgresos > 0 ? Math.round((item.value / totalEgresos) * 100) : 0;
                     const color = COLORS_EXPENSE[index % COLORS_EXPENSE.length];
                     return (
-                      <div key={item.name} style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px' }}>
-                          <span style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: '500', color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '140px' }} title={item.name}>
-                            <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: color, flexShrink: 0 }} />
+                      <div key={item.name} style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px' }}>
+                          <span style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: '500', color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '100px' }} title={item.name}>
+                            <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: color, flexShrink: 0 }} />
                             {item.name}
                           </span>
-                          <span style={{ color: 'var(--text-secondary)', fontSize: '11px', flexShrink: 0 }}>
-                            ${item.value.toLocaleString()} ({percentage}%)
+                          <span style={{ color: 'var(--text-secondary)', fontSize: '10px', flexShrink: 0 }}>
+                            ${item.value.toLocaleString()}
                           </span>
                         </div>
-                        <div style={{ width: '100%', height: '4px', background: 'var(--border-color)', borderRadius: '100px', overflow: 'hidden' }}>
+                        <div style={{ width: '100%', height: '3px', background: 'var(--border-color)', borderRadius: '100px', overflow: 'hidden' }}>
                           <div style={{ width: `${percentage}%`, height: '100%', background: color, borderRadius: '100px' }} />
                         </div>
                       </div>
@@ -672,8 +757,35 @@ export default function FinanzasPage() {
                           <div style={{ color: 'var(--text-secondary)', fontSize: '12px', marginTop: '2px' }}>Alumno: {item.student}</div>
                         )}
                       </td>
-                      <td style={{ padding: '16px 24px', textAlign: 'right', fontWeight: '600', color: item.type === 'Entrada' ? 'var(--text-primary)' : '#ef4444' }}>
-                        {item.type === 'Entrada' ? '+' : '-'}${item.amount.toLocaleString()}
+                      <td style={{ padding: '16px 24px', textAlign: 'right' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '8px' }}>
+                          <span style={{ fontWeight: '600', color: item.type === 'Entrada' ? 'var(--text-primary)' : '#ef4444' }}>
+                            {item.type === 'Entrada' ? '+' : '-'}${item.amount.toLocaleString()}
+                          </span>
+                          {item.comprobanteUrl && (
+                            <a 
+                              href={item.comprobanteUrl} 
+                              target="_blank" 
+                              rel="noreferrer" 
+                              title="Descargar Recibo Oficial"
+                              style={{ 
+                                display: 'inline-flex', 
+                                alignItems: 'center', 
+                                justifyContent: 'center', 
+                                color: 'var(--brand-blue)', 
+                                padding: '4px', 
+                                borderRadius: '4px',
+                                background: 'rgba(59, 130, 246, 0.08)',
+                                transition: 'var(--transition)'
+                              }}
+                              onMouseOver={e => e.currentTarget.style.background = 'rgba(59, 130, 246, 0.16)'}
+                              onMouseOut={e => e.currentTarget.style.background = 'rgba(59, 130, 246, 0.08)'}
+                              onClick={e => e.stopPropagation()}
+                            >
+                              <FileText size={14} />
+                            </a>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   );

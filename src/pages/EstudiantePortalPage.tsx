@@ -1,21 +1,38 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   TrendingUp, Wallet, Calendar, CheckCircle2,
   AlertCircle, Clipboard, Play, LogOut, Target, ChevronRight,
   BookOpen, Clock, FileCheck, ArrowLeft, MessageSquare, Mail, Eye, Sparkles,
-  Sun, Moon
+  Sun, Moon, Download
 } from 'lucide-react';
 import { useAppStore } from '../store/useAppStore';
 import type { Student } from '../store/useAppStore';
 import {
-  ResponsiveContainer, AreaChart, Area, CartesianGrid, XAxis, YAxis, Tooltip
+  ResponsiveContainer, AreaChart, Area, CartesianGrid, XAxis, YAxis, Tooltip, ReferenceLine
 } from 'recharts';
 
 export default function EstudiantePortalPage() {
   const navigate = useNavigate();
-  const { students, studentMessages, markMessageAsRead } = useAppStore();
-  const [activeStudentId, setActiveStudentId] = useState<number | null>(null);
+  const { students, studentMessages, markMessageAsRead, servicios, fetchStudents, fetchServicios } = useAppStore();
+  
+  useEffect(() => {
+    if (students.length === 0) {
+      fetchStudents();
+    }
+    if (servicios.length === 0) {
+      fetchServicios();
+    }
+  }, [students.length, servicios.length, fetchStudents, fetchServicios]);
+
+  const [activeStudentId, setActiveStudentId] = useState<string | number | null>(() => {
+    const searchParams = new URLSearchParams(window.location.search);
+    const paramId = searchParams.get('studentId');
+    if (paramId) {
+      return isNaN(Number(paramId)) ? paramId : Number(paramId);
+    }
+    return null;
+  });
 
   // Tema Claro / Oscuro (con persistencia)
   const [isDarkMode, setIsDarkMode] = useState(() => {
@@ -33,6 +50,10 @@ export default function EstudiantePortalPage() {
 
   // Mensaje seleccionado localmente para expansión
   const [expandedMessageId, setExpandedMessageId] = useState<string | null>(null);
+
+  // Modal para ver los intentos registrados
+  const [showAttemptsModal, setShowAttemptsModal] = useState<boolean>(false);
+
 
   // Alumno logueado actualmente
   const activeStudent = students.find(s => s.id === activeStudentId);
@@ -65,26 +86,30 @@ export default function EstudiantePortalPage() {
   };
 
   const getPerformanceData = (student: Student) => {
+    const scaleMax = student.curso?.includes('COMIPEMS') ? 128 : 120;
+
     if (!student.examAttempts || student.examAttempts.length === 0) {
       return [
-        { name: 'Diag.', aciertos: 45 },
-        { name: 'Sim. 1', aciertos: 62 },
-        { name: 'Sim. 2', aciertos: 78 },
-        { name: 'Meta', aciertos: student.curso === 'COMIPEMS' ? 128 : 120 }
+        { name: 'Diag.', aciertos: Math.round(scaleMax * 0.45) },
+        { name: 'Sim. 1', aciertos: Math.round(scaleMax * 0.62) },
+        { name: 'Sim. 2', aciertos: Math.round(scaleMax * 0.78) }
       ];
     }
 
-    return student.examAttempts.map((attempt, index) => ({
-      name: `Int. ${index + 1}`,
-      aciertos: attempt.score,
-      max: attempt.max
-    }));
+    return student.examAttempts.map((attempt, index) => {
+      const ratio = attempt.max > 0 ? attempt.score / attempt.max : 0;
+      return {
+        name: `Int. ${index + 1}`,
+        aciertos: Math.round(ratio * scaleMax),
+        max: scaleMax
+      };
+    });
   };
 
   return (
     <div className={`portal-container ${isDarkMode ? 'dark-theme' : 'light-theme'}`} style={{
       minHeight: '100vh',
-      width: '100vw',
+      width: '100%',
       background: 'var(--portal-bg)',
       color: 'var(--portal-color)',
       fontFamily: "'Outfit', sans-serif",
@@ -98,9 +123,20 @@ export default function EstudiantePortalPage() {
 
 
 
-      {/* Luces de fondo decorativas */}
-      <div style={{ position: 'absolute', width: '450px', height: '450px', background: 'var(--portal-glow-1)', borderRadius: '50%', filter: 'blur(100px)', top: '-100px', left: '-100px', pointerEvents: 'none', transition: 'background 0.3s ease' }}></div>
-      <div style={{ position: 'absolute', width: '500px', height: '500px', background: 'var(--portal-glow-2)', borderRadius: '50%', filter: 'blur(120px)', bottom: '-150px', right: '-100px', pointerEvents: 'none', transition: 'background 0.3s ease' }}></div>
+      {/* Contenedor de Luces de fondo decorativas (con overflow hidden para evitar scrollbars fantasmas) */}
+      <div style={{
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        overflow: 'hidden',
+        pointerEvents: 'none',
+        zIndex: 0
+      }}>
+        <div style={{ position: 'absolute', width: '450px', height: '450px', background: 'var(--portal-glow-1)', borderRadius: '50%', filter: 'blur(100px)', top: '-100px', left: '-100px', transition: 'background 0.3s ease' }}></div>
+        <div style={{ position: 'absolute', width: '500px', height: '500px', background: 'var(--portal-glow-2)', borderRadius: '50%', filter: 'blur(120px)', bottom: '-150px', right: '-100px', transition: 'background 0.3s ease' }}></div>
+      </div>
 
       {/* 1. MODO: SELECTOR DE ALUMNO (LOGIN SIMULADO) */}
       {!activeStudent ? (
@@ -108,19 +144,24 @@ export default function EstudiantePortalPage() {
 
           <div style={{ textAlign: 'center', marginBottom: '40px' }}>
             <div style={{
-              width: '72px',
-              height: '72px',
+              width: '76px',
+              height: '76px',
               borderRadius: '24px',
-              background: 'linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%)',
-              color: '#eab308',
+              background: 'var(--gradient-card)',
+              color: 'var(--brand-yellow)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               margin: '0 auto 20px auto',
-              boxShadow: '0 8px 24px rgba(30, 58, 138, 0.35)',
-              border: '2px solid #eab308'
+              boxShadow: '0 8px 24px rgba(15, 56, 105, 0.25)',
+              border: '2px solid var(--brand-yellow)'
             }}>
-              <span style={{ fontSize: '32px', fontWeight: '900', fontFamily: "'Outfit', sans-serif" }}>C</span>
+              <svg viewBox="0 0 24 24" width="48" height="48" fill="currentColor">
+                <path d="M12 2L2 7.5L12 13L22 7.5L12 2Z" fill="var(--brand-yellow)" />
+                <path d="M17 10.25V14.5C17 16.5 14.75 18 12 18C9.25 18 7 16.5 7 14.5V10.25L12 13L17 10.25Z" fill="#ffffff" />
+                <path d="M18 7.5V12.5" stroke="var(--brand-yellow)" strokeWidth="1.5" strokeLinecap="round" />
+                <path d="M17 12.5H19V14.5H17V12.5Z" fill="var(--brand-yellow)" />
+              </svg>
             </div>
             <h1 style={{ fontSize: '36px', fontWeight: '800', margin: 0, letterSpacing: '-0.02em', background: 'linear-gradient(to right, #ffffff, #9ca3af)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
               CRECE Portal del Estudiante
@@ -170,14 +211,14 @@ export default function EstudiantePortalPage() {
                         width: '46px',
                         height: '46px',
                         borderRadius: '50%',
-                        background: 'rgba(30, 58, 138, 0.12)',
-                        color: '#2563eb',
+                        background: 'rgba(15, 56, 105, 0.08)',
+                        color: 'var(--brand-blue)',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
                         fontWeight: '700',
                         fontSize: '16px',
-                        border: '1px solid rgba(30, 58, 138, 0.2)'
+                        border: '1px solid rgba(15, 56, 105, 0.15)'
                       }}>
                         {student.avatar || student.name.charAt(0)}
                       </div>
@@ -253,54 +294,53 @@ export default function EstudiantePortalPage() {
       ) : (
 
         // 2. PORTAL DE ALUMNO COMPLETO (VISTA DE PANTALLA COMPLETA - ESPECTACULAR DISEÑO DE 3 COLUMNAS)
-        <div style={{ maxWidth: '1560px', margin: '0 auto', position: 'relative', zIndex: 10, display: 'flex', flexDirection: 'column', gap: '24px' }}>
+        <div style={{
+          maxWidth: '1560px',
+          margin: '0 auto',
+          position: 'relative',
+          zIndex: 10,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '24px',
+          minHeight: 'calc(100vh - 48px)',
+          boxSizing: 'border-box'
+        }}>
 
-          {/* Header del Alumno */}
+          {/* Header del Alumno - Rediseño Académico Corporativo con el Azul Fuerte del Sidebar */}
           <div style={{
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
-            background: 'rgba(15, 23, 42, 0.5)',
-            border: '1px solid rgba(255, 255, 255, 0.05)',
-            padding: '16px 28px',
+            background: 'var(--bg-sidebar)', /* Usamos el azul fuerte del sidebar */
+            border: '1px solid rgba(229, 169, 59, 0.28)',
+            padding: '18px 28px',
             borderRadius: '24px',
-            backdropFilter: 'blur(12px)',
-            boxShadow: '0 10px 30px rgba(0,0,0,0.2)'
+            boxShadow: '0 10px 30px rgba(8, 28, 51, 0.35)'
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
               <div style={{
                 width: '54px',
                 height: '54px',
                 borderRadius: '50%',
-                background: 'linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%)',
-                color: 'white',
+                background: 'var(--gradient-accent)',
+                color: '#081c33',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 fontWeight: '700',
                 fontSize: '20px',
-                boxShadow: '0 4px 14px rgba(30, 58, 138, 0.25)',
-                border: '1.5px solid rgba(255,255,255,0.1)'
+                boxShadow: '0 4px 14px rgba(229, 169, 59, 0.25)',
+                border: '1.5px solid var(--brand-blue)'
               }}>
                 {activeStudent.avatar || activeStudent.name.charAt(0)}
               </div>
               <div>
-                <h2 style={{ fontSize: '20px', fontWeight: '800', margin: 0, color: '#ffffff', letterSpacing: '-0.01em' }}>
+                <h2 className="portal-header-title">
                   Bienvenido, {activeStudent.name}
                 </h2>
-                <span style={{ fontSize: '13px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '6px', marginTop: '3px' }}>
-                  <span style={{
-                    background: 'linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%)',
-                    color: '#eab308',
-                    padding: '2px 8px',
-                    borderRadius: '6px',
-                    fontWeight: '800',
-                    fontSize: '11px',
-                    marginRight: '4px',
-                    boxShadow: '0 2px 6px rgba(30, 58, 138, 0.2)',
-                    letterSpacing: '0.05em'
-                  }}>CRECE</span>
-                  <BookOpen size={14} color="var(--accent-primary, #3b82f6)" /> {activeStudent.curso} • Portal del Alumno
+                <span className="portal-header-subtitle">
+                  <span className="portal-header-badge">CRECE</span>
+                  <BookOpen size={14} color="var(--brand-yellow)" /> <span className="portal-header-course">{activeStudent.curso}</span> • Portal del Alumno
                 </span>
               </div>
             </div>
@@ -309,8 +349,8 @@ export default function EstudiantePortalPage() {
               {/* Alerta de Mensajes No Leídos */}
               {unreadMessagesCount > 0 && (
                 <div style={{
-                  background: 'rgba(239, 68, 68, 0.1)',
-                  border: '1px solid rgba(239, 68, 68, 0.2)',
+                  background: 'rgba(239, 68, 68, 0.15)',
+                  border: '1px solid rgba(239, 68, 68, 0.3)',
                   color: '#f87171',
                   padding: '8px 16px',
                   borderRadius: '12px',
@@ -326,12 +366,45 @@ export default function EstudiantePortalPage() {
                 </div>
               )}
 
+              {/* Selector de Tema Claro / Oscuro en Header */}
+              <button
+                onClick={toggleTheme}
+                style={{
+                  background: 'rgba(255, 255, 255, 0.08)',
+                  border: '1px solid rgba(255, 255, 255, 0.2)',
+                  color: '#ffffff',
+                  padding: '10px 16px',
+                  borderRadius: '12px',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  transition: 'all 0.2s ease-in-out',
+                  fontWeight: '600',
+                  fontSize: '13px'
+                }}
+                className="btn-theme-toggle"
+                title={isDarkMode ? "Cambiar a Modo Claro" : "Cambiar a Modo Oscuro"}
+              >
+                {isDarkMode ? (
+                  <>
+                    <Sun size={14} color="#facc15" fill="#facc15" />
+                    <span>Claro</span>
+                  </>
+                ) : (
+                  <>
+                    <Moon size={14} color="#facc15" fill="#facc15" />
+                    <span>Oscuro</span>
+                  </>
+                )}
+              </button>
+
               <button
                 onClick={handleLogout}
                 style={{
-                  background: 'rgba(255, 255, 255, 0.02)',
-                  border: '1px solid rgba(255, 255, 255, 0.05)',
-                  color: '#d1d5db',
+                  background: 'rgba(255, 255, 255, 0.08)',
+                  border: '1px solid rgba(255, 255, 255, 0.2)',
+                  color: '#ffffff',
                   padding: '10px 18px',
                   borderRadius: '12px',
                   fontWeight: '600',
@@ -349,160 +422,10 @@ export default function EstudiantePortalPage() {
             </div>
           </div>
 
-          {/* Grid de Contenido Principal (3 columnas: 1.6fr Académico Principal, 1.2fr Finanzas, 1.2fr Mensajes) */}
+          {/* Grid de Contenido Principal (3 columnas: Finanzas/Expediente, Académico/Meta, Mensajes) */}
           <div className="portal-grid">
 
-            {/* ================= COLUMNA 1 (IZQUIERDA): ACADÉMICO ================= */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', minWidth: 0 }}>
-
-              {/* Card 1: Meta de Admisión */}
-              <div className="glass-card" style={{ padding: '24px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-                  <h3 style={{ fontSize: '16px', fontWeight: '700', color: '#ffffff', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <Target size={18} color="#3b82f6" /> Meta de Admisión
-                  </h3>
-                  <span style={{ fontSize: '12px', background: 'rgba(59, 130, 246, 0.1)', color: '#3b82f6', padding: '4px 12px', borderRadius: '100px', fontWeight: '600', border: '1px solid rgba(59, 130, 246, 0.2)' }}>
-                    Objetivo: {activeStudent.curso === 'COMIPEMS' ? '128' : '120'} aciertos
-                  </span>
-                </div>
-
-                <div className="inner-accent-card" style={{ background: 'rgba(255, 255, 255, 0.015)', border: '1px solid rgba(255, 255, 255, 0.03)', borderRadius: '14px', padding: '16px', marginBottom: '16px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-                    <span style={{ fontSize: '13px', color: '#9ca3af' }}>Puntaje más alto obtenido</span>
-                    <strong style={{ fontSize: '16px', color: '#34d399' }}>
-                      {activeStudent.examAttempts && activeStudent.examAttempts.length > 0
-                        ? Math.max(...activeStudent.examAttempts.map(a => a.score))
-                        : '0'} aciertos
-                    </strong>
-                  </div>
-
-                  <div style={{ width: '100%', height: '10px', background: 'rgba(255, 255, 255, 0.08)', borderRadius: '100px', overflow: 'hidden' }}>
-                    <div style={{
-                      width: activeStudent.examAttempts && activeStudent.examAttempts.length > 0
-                        ? `${(Math.max(...activeStudent.examAttempts.map(a => a.score)) / (activeStudent.curso === 'COMIPEMS' ? 128 : 120)) * 100}%`
-                        : '0%',
-                      height: '100%',
-                      background: 'linear-gradient(90deg, #2563eb 0%, #34d399 100%)',
-                      borderRadius: '100px'
-                    }}></div>
-                  </div>
-                </div>
-
-                <button
-                  onClick={() => navigate('/examen')}
-                  style={{
-                    width: '100%',
-                    background: 'linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%)',
-                    border: 'none',
-                    color: 'white',
-                    padding: '12px 20px',
-                    borderRadius: '12px',
-                    fontWeight: '700',
-                    fontSize: '13px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '8px',
-                    cursor: 'pointer',
-                    boxShadow: '0 4px 12px rgba(30, 58, 138, 0.2)',
-                    transition: 'all 0.2s'
-                  }}
-                  className="btn-start-exam"
-                >
-                  <Play size={14} fill="white" /> Iniciar Examen Simulacro
-                </button>
-              </div>
-
-              {/* Card 2: Evolución Académica */}
-              <div className="glass-card" style={{ padding: '24px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                  <h3 style={{ fontSize: '15px', fontWeight: '700', color: '#ffffff', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <TrendingUp size={18} color="#3b82f6" /> Histórico Académico
-                  </h3>
-                  <span style={{ fontSize: '11px', color: '#9ca3af' }}>Curva de Desempeño</span>
-                </div>
-
-                <div style={{ width: '100%', height: '220px', margin: '10px 0' }}>
-                  <ResponsiveContainer>
-                    <AreaChart data={getPerformanceData(activeStudent)} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
-                      <defs>
-                        <linearGradient id="colorAciertos" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.25} />
-                          <stop offset="95%" stopColor="#3b82f6" stopOpacity={0.0} />
-                        </linearGradient>
-                      </defs>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.03)" />
-                      <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#9ca3af' }} />
-                      <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#9ca3af' }} />
-                      <Tooltip
-                        contentStyle={{ borderRadius: '12px', border: '1px solid rgba(255,255,255,0.08)', background: '#1e293b', color: 'white' }}
-                        formatter={(value: any) => [`${value} aciertos`, 'Puntaje']}
-                      />
-                      <Area type="monotone" dataKey="aciertos" stroke="#3b82f6" strokeWidth={2.5} fillOpacity={1} fill="url(#colorAciertos)" />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-
-              {/* Card 3: Historial de Intentos anteriores */}
-              <div className="glass-card" style={{ padding: '24px' }}>
-                <h3 style={{ fontSize: '15px', fontWeight: '700', color: '#ffffff', margin: '0 0 16px 0', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <Clipboard size={18} color="#f59e0b" /> Intentos Registrados
-                </h3>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                  {activeStudent.examAttempts && activeStudent.examAttempts.length > 0 ? (
-                    activeStudent.examAttempts.map((attempt, index) => {
-                      const percentage = Math.round((attempt.score / attempt.max) * 100);
-                      return (
-                        <div
-                          key={attempt.id}
-                          className="inner-accent-card"
-                          style={{
-                            background: 'rgba(255, 255, 255, 0.01)',
-                            border: '1px solid rgba(255, 255, 255, 0.03)',
-                            borderRadius: '12px',
-                            padding: '12px 16px',
-                            display: 'flex',
-                            justifyContent: 'space-between',
-                            alignItems: 'center'
-                          }}
-                        >
-                          <div>
-                            <span style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#ffffff' }}>
-                              {attempt.examName} <span style={{ color: '#9ca3af', fontWeight: '400', fontSize: '11px' }}>(Int. {index + 1})</span>
-                            </span>
-                            <span style={{ fontSize: '11px', color: '#9ca3af', display: 'flex', alignItems: 'center', gap: '6px', marginTop: '3px' }}>
-                              <Calendar size={11} /> {new Date(attempt.endedAt).toLocaleDateString('es-MX', { day: '2-digit', month: 'short' })} • <Clock size={11} /> {Math.floor(attempt.durationSeconds / 60)}m {attempt.durationSeconds % 60}s
-                            </span>
-                          </div>
-
-                          <div style={{ textAlign: 'right' }}>
-                            <span style={{ display: 'block', fontSize: '14px', fontWeight: '700', color: percentage >= 80 ? '#34d399' : percentage >= 60 ? '#facc15' : '#f87171' }}>
-                              {attempt.score}/{attempt.max}
-                            </span>
-                            <span style={{ fontSize: '10px', color: '#9ca3af' }}>{percentage}% de aciertos</span>
-                          </div>
-                        </div>
-                      );
-                    })
-                  ) : (
-                    <div style={{
-                      padding: '24px',
-                      textAlign: 'center',
-                      background: 'rgba(255, 255, 255, 0.01)',
-                      border: '1.5px dashed rgba(255, 255, 255, 0.04)',
-                      borderRadius: '12px'
-                    }}>
-                      <span style={{ fontSize: '12px', color: '#9ca3af', fontStyle: 'italic' }}>Ningún examen simulacro realizado aún.</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-            </div>
-
-            {/* ================= COLUMNA 2 (CENTRO): FINANZAS Y EXPEDIENTE DIGITAL ================= */}
+            {/* ================= COLUMNA 1 (IZQUIERDA): FINANZAS Y EXPEDIENTE DIGITAL ================= */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', minWidth: 0 }}>
 
               {/* Card 1: Estado Financiero */}
@@ -625,9 +548,236 @@ export default function EstudiantePortalPage() {
                 </div>
               </div>
 
+              {/* Card 3: Repositorio de Materiales y Guías Dinámicas */}
+              <div className="glass-card" style={{ padding: '24px' }}>
+                <h3 style={{ fontSize: '15px', fontWeight: '700', color: '#ffffff', margin: '0 0 16px 0', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <BookOpen size={18} color="var(--brand-yellow)" /> Repositorio de Materiales
+                </h3>
+
+                {(() => {
+                  const matchingServicio = servicios.find(s => 
+                    s.nombre.toLowerCase().trim() === activeStudent.curso.toLowerCase().trim()
+                  );
+                  const materiales = matchingServicio?.materiales || [];
+
+                  if (materiales.length === 0) {
+                    return (
+                      <div style={{ padding: '24px 12px', border: '1px dashed var(--inner-card-border)', borderRadius: '12px', textAlign: 'center', background: 'var(--inner-card-bg)' }}>
+                        <BookOpen size={28} color="var(--text-secondary)" style={{ marginBottom: '8px', opacity: 0.6, marginInline: 'auto' }} />
+                        <span style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-primary)', display: 'block' }}>Sin Guías Asignadas</span>
+                        <p style={{ fontSize: '11px', color: 'var(--text-secondary)', margin: '4px 0 0 0', lineHeight: '1.4' }}>
+                          No se han configurado documentos descargables para este curso. Solicita tus guías a coordinación.
+                        </p>
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                      {materiales.map((material, idx) => {
+                        let size = '1.8 MB';
+                        if (material.includes('Matemáticas')) size = '2.4 MB';
+                        else if (material.includes('Español')) size = '2.1 MB';
+                        else if (material.includes('Bienvenida')) size = '1.5 MB';
+                        else if (material.includes('Reglamento')) size = '0.9 MB';
+                        else if (material.includes('Examen')) size = '1.1 MB';
+                        else if (material.includes('COMIPEMS')) size = '3.2 MB';
+
+                        const bgIcon = idx % 2 === 0 ? 'rgba(234, 179, 8, 0.1)' : 'rgba(59, 130, 246, 0.1)';
+                        const colorIcon = idx % 2 === 0 ? '#ca8a04' : '#2563eb';
+
+                        return (
+                          <div
+                            key={idx}
+                            className="inner-accent-card"
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '12px',
+                              padding: '12px 14px',
+                              borderRadius: '14px',
+                              background: 'var(--inner-card-bg)',
+                              border: '1px solid var(--inner-card-border)',
+                              transition: 'transform 0.2s, box-shadow 0.2s'
+                            }}
+                          >
+                            <div style={{ padding: '8px', background: bgIcon, color: colorIcon, borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                              <BookOpen size={16} />
+                            </div>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                {material}
+                              </div>
+                              <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                                PDF • {size}
+                              </div>
+                            </div>
+                            <button
+                              onClick={() => {
+                                alert(`Descargando: ${material}\nTu material se guardará en tu carpeta de descargas de forma segura.`);
+                              }}
+                              style={{
+                                background: 'transparent',
+                                border: '1.5px solid var(--brand-blue, #2563eb)',
+                                borderRadius: '8px',
+                                color: 'var(--brand-blue, #2563eb)',
+                                cursor: 'pointer',
+                                padding: '6px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                transition: 'all 0.2s ease-in-out'
+                              }}
+                            >
+                              <Download size={14} />
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                })()}
+              </div>
+
             </div>
 
-            {/* ================= COLUMNA 3 (DERECHA - MÁS ANGOSTA): MENSAJES CRECE (SIDE-RAIL ELEGANTE) ================= */}
+            {/* ================= COLUMNA 2 (CENTRO): METAS E HISTÓRICO ACADÉMICO ================= */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', minWidth: 0 }}>
+
+              {/* Card 1: Meta de Admisión */}
+              <div className="glass-card" style={{ padding: '24px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                  <h3 style={{ fontSize: '16px', fontWeight: '700', color: '#ffffff', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Target size={18} color="var(--brand-blue)" /> Meta de Admisión
+                  </h3>
+                  <span style={{ fontSize: '12px', background: 'rgba(15, 56, 105, 0.08)', color: 'var(--brand-blue)', padding: '4px 12px', borderRadius: '100px', fontWeight: '600', border: '1px solid rgba(15, 56, 105, 0.15)' }}>
+                    Objetivo: {activeStudent.curso === 'COMIPEMS' ? '128' : '120'} aciertos
+                  </span>
+                </div>
+
+                <div className="inner-accent-card" style={{ background: 'rgba(255, 255, 255, 0.015)', border: '1px solid rgba(255, 255, 255, 0.03)', borderRadius: '14px', padding: '16px', marginBottom: '16px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                    <span style={{ fontSize: '13px', color: '#9ca3af' }}>Puntaje más alto obtenido</span>
+                    <strong style={{ fontSize: '16px', color: '#34d399' }}>
+                      {activeStudent.examAttempts && activeStudent.examAttempts.length > 0
+                        ? Math.max(...activeStudent.examAttempts.map(a => a.score))
+                        : '0'} aciertos
+                    </strong>
+                  </div>
+
+                  <div style={{ width: '100%', height: '10px', background: 'rgba(255, 255, 255, 0.08)', borderRadius: '100px', overflow: 'hidden' }}>
+                    <div style={{
+                      width: activeStudent.examAttempts && activeStudent.examAttempts.length > 0
+                        ? `${(Math.max(...activeStudent.examAttempts.map(a => a.score)) / (activeStudent.curso === 'COMIPEMS' ? 128 : 120)) * 100}%`
+                        : '0%',
+                      height: '100%',
+                      background: 'linear-gradient(90deg, var(--brand-blue) 0%, #34d399 100%)',
+                      borderRadius: '100px'
+                    }}></div>
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => navigate(`/examen?studentId=${activeStudent.id}&portal=true`)}
+                  style={{
+                    width: '100%',
+                    background: 'var(--gradient-accent)',
+                    border: 'none',
+                    color: '#081c33',
+                    padding: '14px 20px',
+                    borderRadius: 'var(--radius-md)',
+                    fontWeight: '700',
+                    fontSize: '14px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px',
+                    cursor: 'pointer',
+                    boxShadow: '0 4px 12px rgba(229, 169, 59, 0.25)',
+                    transition: 'all 0.2s'
+                  }}
+                  className="btn-start-exam"
+                >
+                  <Play size={14} fill="#081c33" stroke="none" /> Iniciar Examen Simulacro
+                </button>
+              </div>
+
+              {/* Card 2: Evolución Académica */}
+              <div className="glass-card" style={{ padding: '24px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                  <h3 style={{ fontSize: '15px', fontWeight: '700', color: '#ffffff', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <TrendingUp size={18} color="var(--brand-blue)" /> Histórico Académico
+                  </h3>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <span style={{ fontSize: '11px', color: '#9ca3af' }}>Curva de Desempeño</span>
+                    <button
+                      onClick={() => setShowAttemptsModal(true)}
+                      style={{
+                        background: 'rgba(15, 56, 105, 0.05)',
+                        border: '1px solid rgba(15, 56, 105, 0.1)',
+                        color: 'var(--text-primary)',
+                        padding: '6px 12px',
+                        borderRadius: '8px',
+                        fontSize: '11px',
+                        fontWeight: '600',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        transition: 'all 0.2s ease-in-out'
+                      }}
+                      className="btn-ver-detalles"
+                    >
+                      <Eye size={12} />
+                      <span>Ver detalles</span>
+                    </button>
+                  </div>
+                </div>
+
+                <div style={{ width: '100%', height: '300px', margin: '10px 0' }}>
+                  {(() => {
+                    const scaleMax = activeStudent.curso?.includes('COMIPEMS') ? 128 : 120;
+                    const targetScore = activeStudent.curso?.includes('COMIPEMS') ? 110 : 104;
+                    return (
+                      <ResponsiveContainer>
+                        <AreaChart data={getPerformanceData(activeStudent)} margin={{ top: 15, right: 10, left: -25, bottom: 0 }}>
+                          <defs>
+                            <linearGradient id="colorAciertos" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="5%" stopColor="var(--brand-blue)" stopOpacity={0.25} />
+                              <stop offset="95%" stopColor="var(--brand-blue)" stopOpacity={0.0} />
+                            </linearGradient>
+                          </defs>
+                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(15, 56, 105, 0.06)" />
+                          <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#475569' }} />
+                          <YAxis domain={[0, scaleMax]} axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#475569' }} />
+                          <Tooltip
+                            contentStyle={{ borderRadius: '12px', border: '1px solid rgba(15,56,105,0.1)', background: 'var(--bg-card)', color: 'var(--text-primary)', fontFamily: 'Outfit' }}
+                            formatter={(value: any) => [`${value} aciertos`, 'Puntaje Normalizado']}
+                          />
+                          <ReferenceLine
+                            y={targetScore}
+                            stroke="#e5a93b"
+                            strokeDasharray="4 4"
+                            label={{
+                              value: `Meta UNAM/COMIPEMS: ${targetScore}`,
+                              position: 'top',
+                              fill: '#e5a93b',
+                              fontSize: 10,
+                              fontWeight: 700,
+                              fontFamily: 'Outfit'
+                            }}
+                          />
+                          <Area type="monotone" dataKey="aciertos" stroke="var(--brand-blue)" strokeWidth={2.5} fillOpacity={1} fill="url(#colorAciertos)" />
+                        </AreaChart>
+                      </ResponsiveContainer>
+                    );
+                  })()}
+                </div>
+              </div>
+
+            </div>
+
+            {/* ================= COLUMNA 3 (DERECHA): MENSAJES CRECE ================= */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', minWidth: 0 }}>
 
               <div className="glass-card" style={{ padding: '20px', display: 'flex', flexDirection: 'column', height: '100%' }}>
@@ -637,40 +787,6 @@ export default function EstudiantePortalPage() {
                   </h4>
 
                   <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                    {/* Botón Claro / Oscuro al lado de los mensajes */}
-                    <button
-                      onClick={toggleTheme}
-                      style={{
-                        background: 'var(--toggle-bg)',
-                        border: '1px solid var(--toggle-border)',
-                        color: 'var(--text-primary)',
-                        padding: '6px 10px',
-                        borderRadius: '8px',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '6px',
-                        transition: 'all 0.2s ease-in-out',
-                        backdropFilter: 'blur(10px)',
-                        fontWeight: '600',
-                        fontSize: '11px'
-                      }}
-                      className="btn-theme-toggle"
-                      title={isDarkMode ? "Cambiar a Modo Claro" : "Cambiar a Modo Oscuro"}
-                    >
-                      {isDarkMode ? (
-                        <>
-                          <Sun size={12} color="#facc15" fill="#facc15" />
-                          <span>Claro</span>
-                        </>
-                      ) : (
-                        <>
-                          <Moon size={12} color="#2563eb" fill="#2563eb" />
-                          <span>Oscuro</span>
-                        </>
-                      )}
-                    </button>
-
                     {unreadMessagesCount > 0 && (
                       <span style={{
                         fontSize: '10px',
@@ -794,6 +910,171 @@ export default function EstudiantePortalPage() {
 
           </div>
 
+          {/* Modal de Intentos Registrados */}
+          {showAttemptsModal && (
+            <div
+              onClick={() => setShowAttemptsModal(false)}
+              style={{
+                position: 'fixed',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                background: 'rgba(0, 0, 0, 0.65)',
+                backdropFilter: 'blur(10px)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                zIndex: 1000,
+                padding: '20px',
+                boxSizing: 'border-box',
+                animation: 'fadeIn 0.25s ease-out'
+              }}
+            >
+              <div
+                onClick={(e) => e.stopPropagation()}
+                className="glass-card animate-modal"
+                style={{
+                  width: '100%',
+                  maxWidth: '540px',
+                  maxHeight: '80vh',
+                  background: 'var(--card-bg)',
+                  border: '1px solid var(--card-border)',
+                  borderRadius: '24px',
+                  boxShadow: 'var(--card-shadow)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  position: 'relative',
+                  animation: 'slideUp 0.25s ease-out',
+                  overflow: 'hidden'
+                }}
+              >
+                {/* Cabecera del Modal */}
+                <div style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  padding: '20px 24px',
+                  borderBottom: '1px solid var(--inner-card-border)',
+                  background: 'rgba(255, 255, 255, 0.015)'
+                }}>
+                  <div>
+                    <h3 style={{ fontSize: '18px', fontWeight: '800', margin: 0, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <Clipboard size={20} color="#f59e0b" /> Intentos Registrados
+                    </h3>
+                    <span style={{ fontSize: '12px', color: '#9ca3af', marginTop: '2px', display: 'block' }}>
+                      Historial de simulacros de {activeStudent.name}
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => setShowAttemptsModal(false)}
+                    style={{
+                      background: 'transparent',
+                      border: 'none',
+                      color: 'var(--text-primary)',
+                      fontSize: '18px',
+                      cursor: 'pointer',
+                      padding: '4px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      lineHeight: 1,
+                      transition: 'transform 0.15s'
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.2)'}
+                    onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                {/* Contenido / Lista */}
+                <div style={{
+                  padding: '24px',
+                  overflowY: 'auto',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '12px',
+                  boxSizing: 'border-box'
+                }}>
+                  {activeStudent.examAttempts && activeStudent.examAttempts.length > 0 ? (
+                    activeStudent.examAttempts.map((attempt, index) => {
+                      const percentage = Math.round((attempt.score / attempt.max) * 100);
+                      return (
+                        <div
+                          key={attempt.id}
+                          className="inner-accent-card"
+                          style={{
+                            background: 'rgba(255, 255, 255, 0.01)',
+                            border: '1px solid rgba(255, 255, 255, 0.03)',
+                            borderRadius: '12px',
+                            padding: '12px 16px',
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center'
+                          }}
+                        >
+                          <div>
+                            <span style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#ffffff' }}>
+                              {attempt.examName} <span style={{ color: '#9ca3af', fontWeight: '400', fontSize: '11px' }}>(Int. {index + 1})</span>
+                            </span>
+                            <span style={{ fontSize: '11px', color: '#9ca3af', display: 'flex', alignItems: 'center', gap: '6px', marginTop: '3px' }}>
+                              <Calendar size={11} /> {new Date(attempt.endedAt).toLocaleDateString('es-MX', { day: '2-digit', month: 'short' })} • <Clock size={11} /> {Math.floor(attempt.durationSeconds / 60)}m {attempt.durationSeconds % 60}s
+                            </span>
+                          </div>
+
+                          <div style={{ textAlign: 'right' }}>
+                            <span style={{ display: 'block', fontSize: '14px', fontWeight: '700', color: percentage >= 80 ? '#34d399' : percentage >= 60 ? '#facc15' : '#f87171' }}>
+                              {attempt.score}/{attempt.max}
+                            </span>
+                            <span style={{ fontSize: '10px', color: '#9ca3af' }}>{percentage}% de aciertos</span>
+                          </div>
+                        </div>
+                      );
+                    })
+                  ) : (
+                    <div style={{
+                      padding: '36px 24px',
+                      textAlign: 'center',
+                      background: 'rgba(255, 255, 255, 0.01)',
+                      border: '1.5px dashed rgba(255, 255, 255, 0.04)',
+                      borderRadius: '12px'
+                    }}>
+                      <span style={{ fontSize: '13px', color: '#9ca3af', fontStyle: 'italic' }}>Ningún examen simulacro realizado aún.</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Footer del Portal para anclar y balancear el espacio vertical */}
+          <div style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            padding: '24px 8px 8px 8px',
+            borderTop: '1px solid var(--inner-card-border)',
+            marginTop: 'auto',
+            fontSize: '12px',
+            color: 'var(--text-muted)',
+            flexWrap: 'wrap',
+            gap: '12px',
+            transition: 'border-color 0.3s ease'
+          }}>
+            <span>© 2026 CRECE - Portal del Alumno. Todos los derechos reservados.</span>
+            <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+              <span>Sesión activa: <strong>{activeStudent.name}</strong></span>
+              <span style={{
+                background: 'var(--inner-card-bg)',
+                padding: '3px 10px',
+                borderRadius: '100px',
+                border: '1px solid var(--inner-card-border)',
+                fontWeight: '600'
+              }}>ID: {activeStudent.id}</span>
+            </div>
+          </div>
+
         </div>
       )}
     </div>
@@ -824,51 +1105,51 @@ function styleTag() {
       }
       .dark-theme {
         --text-primary: #ffffff;
-        --text-secondary: #93c5fd; /* brand soft blue */
+        --text-secondary: var(--brand-yellow);
         --text-muted: #cbd5e1;
-        --portal-bg: linear-gradient(135deg, #060b1e 0%, #0c1735 100%); /* CRECE deep blue */
+        --portal-bg: linear-gradient(135deg, #041021 0%, #081c33 100%);
         --portal-color: #f3f4f6;
-        --portal-glow-1: rgba(30, 58, 138, 0.25); /* brand blue glow */
-        --portal-glow-2: rgba(234, 179, 8, 0.08); /* brand gold glow */
-        --card-bg: rgba(12, 22, 53, 0.55);
-        --card-border: rgba(30, 58, 138, 0.2);
+        --portal-glow-1: rgba(15, 56, 105, 0.4);
+        --portal-glow-2: rgba(229, 169, 59, 0.15);
+        --card-bg: rgba(8, 28, 51, 0.75);
+        --card-border: rgba(229, 169, 59, 0.15);
         --card-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.5);
-        --inner-card-bg: rgba(30, 58, 138, 0.1);
-        --inner-card-border: rgba(30, 58, 138, 0.15);
-        --header-bg: rgba(12, 22, 53, 0.65);
-        --selector-bg: rgba(6, 11, 30, 0.85);
-        --selector-border: rgba(30, 58, 138, 0.3);
-        --selector-card-bg: rgba(30, 58, 138, 0.15);
-        --selector-card-border: rgba(30, 58, 138, 0.2);
-        --toggle-bg: rgba(12, 22, 53, 0.7);
-        --toggle-border: rgba(30, 58, 138, 0.3);
+        --inner-card-bg: rgba(15, 56, 105, 0.2);
+        --inner-card-border: rgba(15, 56, 105, 0.3);
+        --header-bg: rgba(8, 28, 51, 0.65);
+        --selector-bg: rgba(4, 16, 33, 0.9);
+        --selector-border: rgba(229, 169, 59, 0.2);
+        --selector-card-bg: rgba(15, 56, 105, 0.3);
+        --selector-card-border: rgba(15, 56, 105, 0.4);
+        --toggle-bg: rgba(8, 28, 51, 0.8);
+        --toggle-border: rgba(229, 169, 59, 0.25);
       }
       .light-theme {
-        --text-primary: #1e293b; /* CRECE main text charcoal */
-        --text-secondary: #64748b; /* CRECE slate text */
-        --text-muted: #475569;
-        --portal-bg: #f5f7fb; /* CRECE official background from screenshot */
-        --portal-color: #1e293b;
-        --portal-glow-1: rgba(30, 58, 138, 0.03);
-        --portal-glow-2: rgba(234, 179, 8, 0.02);
-        --card-bg: #ffffff; /* Solid white dashboard cards from screenshot */
-        --card-border: #e2e8f0; /* Soft borders from screenshot */
-        --card-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03); /* Soft shadows */
-        --inner-card-bg: #f8fafc; /* inner accent lists */
-        --inner-card-border: #e2e8f0;
+        --text-primary: #0f3869; /* Azul marino escolar como primario */
+        --text-secondary: #475569;
+        --text-muted: #5a7184;
+        --portal-bg: #faf9f5; /* Fondo crema pergamino insignia de la marca */
+        --portal-color: #0f172a;
+        --portal-glow-1: rgba(15, 56, 105, 0.05);
+        --portal-glow-2: rgba(229, 169, 59, 0.04);
+        --card-bg: #ffffff;
+        --card-border: rgba(15, 56, 105, 0.08);
+        --card-shadow: 0 10px 25px rgba(15, 56, 105, 0.04);
+        --inner-card-bg: #faf9f6;
+        --inner-card-border: rgba(15, 56, 105, 0.06);
         --header-bg: #ffffff;
         --selector-bg: #ffffff;
-        --selector-border: #e2e8f0;
+        --selector-border: rgba(15, 56, 105, 0.1);
         --selector-card-bg: #ffffff;
-        --selector-card-border: #e2e8f0;
-        --toggle-bg: #f1f5f9;
-        --toggle-border: #cbd5e1;
+        --selector-card-border: rgba(15, 56, 105, 0.08);
+        --toggle-bg: #f1ebd9;
+        --toggle-border: rgba(229, 169, 59, 0.25);
       }
       .brand-accent-card {
-        background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%) !important;
-        border: 1px solid rgba(255, 255, 255, 0.1) !important;
+        background: var(--gradient-card) !important;
+        border: 1px double rgba(229, 169, 59, 0.3) !important;
         border-radius: 20px;
-        box-shadow: 0 10px 25px -5px rgba(30, 58, 138, 0.25) !important;
+        box-shadow: 0 10px 25px -5px rgba(15, 56, 105, 0.3) !important;
         color: #ffffff !important;
         transition: all 0.3s ease;
       }
@@ -886,7 +1167,7 @@ function styleTag() {
       }
       .brand-accent-card .alert-text-ontime,
       .light-theme .brand-accent-card .alert-text-ontime {
-        color: #fbbf24 !important;
+        color: var(--brand-yellow) !important;
       }
       .brand-accent-card .alert-text-paid,
       .light-theme .brand-accent-card .alert-text-paid {
@@ -912,7 +1193,7 @@ function styleTag() {
       .light-theme h5,
       .light-theme strong,
       .light-theme .text-white {
-        color: var(--text-primary) !important;
+        color: var(--brand-blue) !important; /* Todos los títulos en azul marino oficial */
       }
       .light-theme span,
       .light-theme p,
@@ -929,8 +1210,8 @@ function styleTag() {
         border-color: var(--selector-card-border) !important;
       }
       .light-theme .student-card-selector:hover {
-        background: rgba(30, 58, 138, 0.04) !important;
-        border-color: rgba(30, 58, 138, 0.15) !important;
+        background: rgba(15, 56, 105, 0.04) !important;
+        border-color: rgba(229, 169, 59, 0.25) !important;
       }
       .light-theme .inner-accent-card {
         background: var(--inner-card-bg) !important;
@@ -942,15 +1223,15 @@ function styleTag() {
         box-shadow: var(--card-shadow) !important;
       }
       .light-theme .message-card:hover {
-        background: #f8fafc !important;
-        border-color: rgba(30, 58, 138, 0.15) !important;
+        background: #faf9f6 !important;
+        border-color: rgba(229, 169, 59, 0.2) !important;
       }
       .student-card-selector {
         transition: all 0.2s ease-in-out;
       }
       .student-card-selector:hover {
         transform: translateY(-2px);
-        box-shadow: 0 8px 16px rgba(59, 130, 246, 0.08);
+        box-shadow: 0 8px 16px rgba(15, 56, 105, 0.06);
       }
       .message-card {
         transition: all 0.15s ease-in-out;
@@ -960,7 +1241,7 @@ function styleTag() {
         border-color: rgba(255,255,255,0.06) !important;
       }
       .unread-glow {
-        box-shadow: inset 0 0 4px rgba(59, 130, 246, 0.03);
+        box-shadow: inset 0 0 4px rgba(15, 56, 105, 0.03);
       }
       .shake-icon {
         animation: shake 3s infinite;
@@ -973,35 +1254,35 @@ function styleTag() {
         98% { transform: rotate(-10deg); }
       }
       .btn-exit-portal:hover {
-        background: rgba(255, 255, 255, 0.05) !important;
-        border-color: rgba(255, 255, 255, 0.08) !important;
+        background: rgba(255, 255, 255, 0.15) !important;
+        border-color: rgba(255, 255, 255, 0.25) !important;
       }
       .btn-start-exam {
-        background: #1e3a8a !important; /* Solid CRECE deep blue! */
-        color: #ffffff !important;
-        border-radius: 9999px !important; /* Fully rounded capsule button! */
+        background: var(--gradient-accent) !important;
+        color: #081c33 !important; /* Máxima legibilidad */
+        border-radius: var(--radius-md) !important;
         font-weight: 700 !important;
-        font-size: 13px !important;
+        font-size: 14px !important;
         transition: all 0.2s ease-in-out !important;
         border: none !important;
-        box-shadow: 0 4px 12px rgba(30, 58, 138, 0.15) !important;
+        box-shadow: 0 4px 12px rgba(229, 169, 59, 0.2) !important;
       }
       .btn-start-exam:hover {
-        background: #1d4ed8 !important; /* Solid vibrant blue hover! */
+        opacity: 0.95 !important;
         transform: translateY(-1.5px) !important;
-        box-shadow: 0 6px 16px rgba(30, 58, 138, 0.25) !important;
+        box-shadow: 0 6px 16px rgba(229, 169, 59, 0.35) !important;
       }
       .light-theme .btn-exit-portal {
-        background: #ffffff !important;
-        border: 1px solid #cbd5e1 !important;
-        color: #1e3a8a !important;
-        border-radius: 9999px !important; /* Also capsule! */
+        background: rgba(255, 255, 255, 0.12) !important;
+        border: 1px solid rgba(255, 255, 255, 0.25) !important;
+        color: #ffffff !important;
+        border-radius: var(--radius-md) !important;
         font-weight: 600 !important;
         transition: all 0.2s ease-in-out !important;
       }
       .light-theme .btn-exit-portal:hover {
-        background: #f1f5f9 !important;
-        border-color: #94a3b8 !important;
+        background: rgba(255, 255, 255, 0.2) !important;
+        border-color: rgba(255, 255, 255, 0.4) !important;
       }
       .portal-grid {
         display: grid;
@@ -1010,8 +1291,66 @@ function styleTag() {
       }
       @media (min-width: 1024px) {
         .portal-grid {
-          grid-template-columns: 1.6fr 1.2fr 1.2fr;
+          grid-template-columns: 1.2fr 1.6fr 1.2fr;
         }
+      }
+      @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+      }
+      @keyframes slideUp {
+        from { transform: translateY(20px); opacity: 0; }
+        to { transform: translateY(0); opacity: 1; }
+      }
+      .btn-ver-detalles {
+        transition: all 0.2s ease-in-out !important;
+      }
+      .btn-ver-detalles:hover {
+        background: rgba(255, 255, 255, 0.12) !important;
+        border-color: rgba(255, 255, 255, 0.25) !important;
+        transform: translateY(-1px);
+      }
+      .light-theme .btn-ver-detalles {
+        background: rgba(15, 56, 105, 0.05) !important;
+        border-color: rgba(15, 56, 105, 0.1) !important;
+        color: var(--brand-blue) !important;
+      }
+      .light-theme .btn-ver-detalles:hover {
+        background: rgba(15, 56, 105, 0.08) !important;
+        border-color: rgba(15, 56, 105, 0.18) !important;
+      }
+      /* Forzar legibilidad blanca y dorada en cabecera del portal */
+      .portal-header-title {
+        color: #ffffff !important;
+        font-size: 20px;
+        font-weight: 800;
+        margin: 0;
+        letter-spacing: -0.01em;
+        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+      }
+      .portal-header-subtitle {
+        color: rgba(255, 255, 255, 0.75) !important;
+        font-size: 13px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        margin-top: 5px;
+      }
+      .portal-header-badge {
+        background: var(--gradient-accent) !important;
+        color: #081c33 !important;
+        padding: 2px 8px;
+        border-radius: 6px;
+        font-weight: 800;
+        font-size: 11px;
+        margin-right: 4px;
+        box-shadow: 0 2px 6px rgba(229, 169, 59, 0.2);
+        letter-spacing: 0.05em;
+        display: inline-block;
+      }
+      .portal-header-course {
+        color: #ffffff !important;
+        font-weight: 600 !important;
       }
     `}</style>
   );

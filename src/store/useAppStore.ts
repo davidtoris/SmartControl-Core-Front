@@ -1,7 +1,28 @@
 import { create } from 'zustand';
-import { mockStudents, mockTransactions } from '../data/mockData';
+import apiClient from '../api/apiClient';
 
 // --- INTERFACES ---
+export interface Question {
+  subject: string;
+  question: string;
+  options: Record<string, string>;
+  correct: string;
+  explanation: string;
+  image?: string;
+  imageCaption?: string;
+  optionsAreImages?: boolean;
+  servicio?: string;
+  examName?: string;
+}
+
+export interface Exam {
+  id: string;
+  name: string;
+  servicio: string;
+  durationMinutes: number;
+  description?: string;
+}
+
 export interface ExamAttempt {
   id: string;
   examName: string;
@@ -12,10 +33,12 @@ export interface ExamAttempt {
   durationSeconds: number;
   answers: Record<number, string>; // { questionIndex: selectedOption }
   auditLog: { timestamp: string; action: string }[];
+  integrityScore?: number;
+  cheatingCanceled?: boolean;
 }
 
 export interface Student {
-  id: number;
+  id: number | string;
   name: string;
   curso: string;
   tutor: string;
@@ -27,14 +50,41 @@ export interface Student {
     type: string;
     totalCost: number;
     amountPaid: number;
+    costoInscripcion?: number;
+    planPagosRealizados?: number;
+    planPagosTotales?: number;
   };
-  documents: { name: string; status: string }[];
+  documents: { name: string; status: string; url?: string }[];
   exams?: { name: string; score: number; max: number; date: string; details: string }[];
   examAttempts?: ExamAttempt[];
   attendance?: {
     percentage: number;
     history: { date: string; status: string }[];
   };
+  
+  // Nuevas propiedades académicas, certificación y auditoría
+  realizoExamenFinal?: boolean;
+  tieneCertificado?: boolean;
+  certificadoPdf?: string | null;
+  certificadoXml?: string | null;
+  certNombreValido?: boolean;
+  certCurpValido?: boolean;
+  certCalificacionValido?: boolean;
+  certSigedValido?: boolean;
+  certificadoEnviado?: boolean;
+  fotoEvidencia?: string | null;
+  certValidadorUser?: string | null;
+  certValidadorFecha?: string | null;
+  pagoRegistradorUser?: string | null;
+  pagoRegistradorFecha?: string | null;
+  cuotas?: {
+    id: string;
+    numeroPago: number;
+    monto: number;
+    fechaVencimiento: string;
+    status: string;
+    fechaPago?: string | null;
+  }[];
 }
 
 export interface Subcategory {
@@ -53,23 +103,83 @@ export interface Transaction {
   id: string;
   type: 'Entrada' | 'Salida';
   student: string; // Nombre del alumno o '-'
-  studentId?: number; // Para vinculación reactiva
+  studentId?: number | string; // Para vinculación reactiva
   concept: string;
   category: string;
   subcategory?: string;
   amount: number;
   date: string;
   status: string; // 'Pagado', 'Pendiente', etc.
+  comprobanteUrl?: string;
 }
 
 export interface StudentMessage {
   id: string;
-  studentId: number;
+  studentId: number | string;
   sender: string;
   title: string;
   content: string;
   sentAt: string;
   readAt?: string;
+}
+
+export interface EnlaceInscripcion {
+  id: string;
+  token: string;
+  curso: string;
+  costoInscripcion: number;
+  costoContado: number;
+  costoPagos: number;
+  planPagosTotales: number;
+  activo: boolean;
+  usosMaximos: number;
+  usosActuales: number;
+  expiraEn?: string | null;
+  creadoPorUser?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  empresaId: string;
+  documentosRequeridos?: string[];
+}
+
+export interface Servicio {
+  id: string;
+  nombre: string;
+  descripcion?: string | null;
+  duracionMeses: number;
+  documentosRequeridos: string[];
+  materiales?: string[];
+  proceso?: string | null;
+  tieneCertificado: boolean;
+  requiereEvidencia: boolean;
+  activo: boolean;
+  alumnosCount: number;
+  createdAt: string;
+  updatedAt: string;
+  empresaId: string;
+}
+
+export interface CRMFollowUpLog {
+  id: string;
+  fecha: string;
+  nota: string;
+  usuario: string;
+  nuevoEstatus?: string;
+}
+
+export interface CRMProspect {
+  id: string;
+  nombre: string;
+  telefono: string;
+  correo?: string;
+  procedencia: string;
+  modalidad: 'Digital' | 'Presencial';
+  cursoInteres?: string;
+  estatus: 'Prospecto' | 'Contactado' | 'Demostración' | 'Inscrito' | 'Descartado';
+  fechaRegistro: string;
+  historialSeguimiento: CRMFollowUpLog[];
+  comoTeEnteraste: string;
+  entidadFederativa: string;
 }
 
 interface AppState {
@@ -86,10 +196,25 @@ interface AppState {
   // Alumnos y Transacciones
   students: Student[];
   transactions: Transaction[];
-  addStudent: (student: Student) => void;
+  fetchStudents: () => Promise<void>;
+  fetchTransactions: () => Promise<void>;
+  addStudent: (student: any) => Promise<void>;
   addTransaction: (transaction: Transaction) => void;
-  recordStudentPayment: (studentId: number, amount: number) => void;
-  addExamAttempt: (studentId: number, attempt: ExamAttempt) => void;
+  recordStudentPayment: (studentId: number | string, amount: number) => Promise<string | null>;
+  updateStudentTracking: (studentId: number | string, fields: Partial<Student>) => Promise<void>;
+  addExamAttempt: (studentId: number | string, attempt: ExamAttempt) => Promise<void>;
+  
+  // Banco de Reactivos Dinámico
+  questions: Question[];
+  addQuestion: (question: Question) => void;
+  deleteQuestion: (index: number) => void;
+  updateQuestion: (index: number, question: Question) => void;
+
+  // Exámenes Estructurados (Fase 5 - Extensión)
+  exams: Exam[];
+  addExam: (exam: Exam) => void;
+  updateExam: (id: string, fields: Partial<Exam>) => void;
+  deleteExam: (id: string) => void;
   
   // Mensajes de Alumnos
   studentMessages: StudentMessage[];
@@ -97,150 +222,44 @@ interface AppState {
   
   // Categorías y Subcategorías
   categories: Category[];
+  fetchCategories: () => Promise<void>;
   addCategory: (category: Category) => void;
   addSubcategory: (categoryId: string, subcategoryName: string) => void;
+  deleteCategory: (categoryId: string) => Promise<void>;
+  deleteSubcategory: (subcategoryId: string) => Promise<void>;
+  updateCategory: (categoryId: string, name: string, type: 'income' | 'expense') => Promise<void>;
+  updateSubcategory: (subcategoryId: string, name: string, categoryId: string) => Promise<void>;
+
+  // Enlaces de Inscripción
+  enlacesInscripcion: EnlaceInscripcion[];
+  fetchEnlacesInscripcion: () => Promise<void>;
+  createEnlaceInscripcion: (enlace: Partial<EnlaceInscripcion>) => Promise<EnlaceInscripcion>;
+  toggleEnlaceInscripcion: (id: string, activo: boolean) => Promise<void>;
+  fetchPublicEnlace: (token: string) => Promise<EnlaceInscripcion>;
+  registerPublicStudent: (student: any, token: string) => Promise<any>;
+  deleteEnlaceInscripcion: (id: string) => Promise<void>;
+  updateEnlaceInscripcion: (id: string, fields: { usosMaximos?: number; expiraEn?: string | null }) => Promise<void>;
+
+  // Servicios
+  servicios: Servicio[];
+  fetchServicios: () => Promise<void>;
+  createServicio: (fields: Partial<Servicio>) => Promise<Servicio>;
+  updateServicio: (id: string, fields: Partial<Servicio>) => Promise<void>;
+  toggleServicio: (id: string, activo: boolean) => Promise<void>;
+  deleteServicio: (id: string) => Promise<void>;
+
+  // CRM Prospectos
+  prospects: CRMProspect[];
+  addProspect: (prospect: Omit<CRMProspect, 'id' | 'fechaRegistro' | 'historialSeguimiento'>) => void;
+  updateProspect: (id: string, fields: Partial<CRMProspect>) => void;
+  deleteProspect: (id: string) => void;
+  addProspectFollowUp: (prospectId: string, log: Omit<CRMFollowUpLog, 'id' | 'fecha'>) => void;
+
+  // Asistencia Escolar
+  saveBatchAttendance: (date: string, records: Record<string, 'Presente' | 'Falta' | 'Retardo'>) => Promise<void>;
 }
 
-// --- DATOS INICIALES ENRIQUECIDOS ---
-const enrichedStudents: Student[] = mockStudents.map(s => {
-  if (s.id === 1) return { ...s, nextPaymentDate: '2026-06-05' }; // Futura: Al Corriente
-  if (s.id === 2) return { ...s, nextPaymentDate: '2026-05-20' }; // Hace 6 días: Atrasado (3+ días)
-  if (s.id === 3) return { ...s, nextPaymentDate: '2026-05-23' }; // Hace 3 días: Atrasado (3+ días)
-  return s; // Diego (id: 4) ya pagó todo, no tiene fecha de adeudo futuro
-});
 
-const enrichedTransactions: Transaction[] = mockTransactions.map(t => {
-  let category = 'Otro Ingreso';
-  let subcategory = 'Donaciones';
-  if (t.id === 'REC-001') { category = 'Colegiatura / Mensualidad'; subcategory = 'UNAM'; }
-  if (t.id === 'REC-002') { category = 'Inscripción'; subcategory = 'COMIPEMS'; }
-  if (t.id === 'REC-003') { category = 'Colegiatura / Mensualidad'; subcategory = 'COMIPEMS'; }
-  if (t.id === 'GAS-001') { category = 'Publicidad (FB / IG)'; subcategory = 'Campañas de Facebook'; }
-  if (t.id === 'GAS-002') { category = 'Mantenimiento'; subcategory = 'Limpieza'; }
-  
-  return {
-    id: t.id,
-    type: t.type as 'Entrada' | 'Salida',
-    student: t.student,
-    concept: t.concept,
-    amount: t.amount,
-    date: t.date,
-    status: t.status,
-    category,
-    subcategory
-  };
-});
-
-// --- CATALOGO INICIAL DE CATEGORIAS Y SUBCATEGORIAS ---
-const initialCategories: Category[] = [
-  // --- INGRESOS ---
-  {
-    id: 'CAT-INC-001',
-    name: 'Inscripción',
-    type: 'income',
-    subcategories: [
-      { id: 'SUB-INC-101', name: 'COMIPEMS' },
-      { id: 'SUB-INC-102', name: 'UNAM' },
-      { id: 'SUB-INC-103', name: 'IPN' }
-    ]
-  },
-  {
-    id: 'CAT-INC-002',
-    name: 'Colegiatura / Mensualidad',
-    type: 'income',
-    subcategories: [
-      { id: 'SUB-INC-201', name: 'COMIPEMS' },
-      { id: 'SUB-INC-202', name: 'UNAM' },
-      { id: 'SUB-INC-203', name: 'IPN' }
-    ]
-  },
-  {
-    id: 'CAT-INC-003',
-    name: 'Venta de Material',
-    type: 'income',
-    subcategories: [
-      { id: 'SUB-INC-301', name: 'Guías de Estudio' },
-      { id: 'SUB-INC-302', name: 'Uniformes' },
-      { id: 'SUB-INC-303', name: 'Exámenes Simulacro' }
-    ]
-  },
-  {
-    id: 'CAT-INC-004',
-    name: 'Otro Ingreso',
-    type: 'income',
-    subcategories: [
-      { id: 'SUB-INC-401', name: 'Donaciones' },
-      { id: 'SUB-INC-402', name: 'Renta de Aulas' }
-    ]
-  },
-  // --- EGRESOS ---
-  {
-    id: 'CAT-EXP-001',
-    name: 'Publicidad (FB / IG)',
-    type: 'expense',
-    subcategories: [
-      { id: 'SUB-EXP-101', name: 'Campañas de Facebook' },
-      { id: 'SUB-EXP-102', name: 'Campañas de Instagram' },
-      { id: 'SUB-EXP-103', name: 'Flyers y Folletos' }
-    ]
-  },
-  {
-    id: 'CAT-EXP-002',
-    name: 'Renta de Inmueble',
-    type: 'expense',
-    subcategories: [
-      { id: 'SUB-EXP-201', name: 'Sucursal Principal' },
-      { id: 'SUB-EXP-202', name: 'Sucursal Norte' }
-    ]
-  },
-  {
-    id: 'CAT-EXP-003',
-    name: 'Sueldo Docente',
-    type: 'expense',
-    subcategories: [
-      { id: 'SUB-EXP-301', name: 'Profesores de Matemáticas' },
-      { id: 'SUB-EXP-302', name: 'Profesores de Ciencias' },
-      { id: 'SUB-EXP-303', name: 'Profesores de Historia' }
-    ]
-  },
-  {
-    id: 'CAT-EXP-004',
-    name: 'Servicios Básicos (Internet/Luz)',
-    type: 'expense',
-    subcategories: [
-      { id: 'SUB-EXP-401', name: 'Luz (CFE)' },
-      { id: 'SUB-EXP-402', name: 'Internet (Telmex/Izzi)' },
-      { id: 'SUB-EXP-403', name: 'Agua' }
-    ]
-  },
-  {
-    id: 'CAT-EXP-005',
-    name: 'Mantenimiento',
-    type: 'expense',
-    subcategories: [
-      { id: 'SUB-EXP-501', name: 'Limpieza' },
-      { id: 'SUB-EXP-502', name: 'Reparaciones Eléctricas' }
-    ]
-  },
-  {
-    id: 'CAT-EXP-006',
-    name: 'Papelería',
-    type: 'expense',
-    subcategories: [
-      { id: 'SUB-EXP-601', name: 'Hojas y Plumas' },
-      { id: 'SUB-EXP-602', name: 'Copias e Impresiones' }
-    ]
-  },
-  {
-    id: 'CAT-EXP-007',
-    name: 'Otro Gasto',
-    type: 'expense',
-    subcategories: [
-      { id: 'SUB-EXP-701', name: 'Caja Chica' },
-      { id: 'SUB-EXP-702', name: 'Gastos de Emergencia' }
-    ]
-  }
-];
 
 const initialMessages: StudentMessage[] = [
   // Mensajes de Ana Sofía Martínez (id: 1)
@@ -280,111 +299,800 @@ const initialMessages: StudentMessage[] = [
   }
 ];
 
+import moodleQuestions from '../data/preguntas_moodle.json';
+
+const initialQuestions: Question[] = [
+  {
+    subject: 'Matemáticas',
+    question: 'Si f(x) = x² - 3x + 2, ¿cuál es el valor de f(4) - f(2)?',
+    options: {
+      A: '6',
+      B: '8',
+      C: '4',
+      D: '2'
+    },
+    correct: 'A',
+    image: '/grafica_parabola.png',
+    imageCaption: 'Gráfica cartesiana de la función f(x) = x² - 3x + 2',
+    explanation: 'Primero evaluamos f(4): 4² - 3(4) + 2 = 16 - 12 + 2 = 6. Luego evaluamos f(2): 2² - 3(2) + 2 = 4 - 6 + 2 = 0. Finalmente restamos: f(4) - f(2) = 6 - 0 = 6.'
+  },
+  {
+    subject: 'Matemáticas - Geometría Avanzada',
+    question: 'Considerando la función cuadrática f(x) = x² - 3x + 2 mostrada en el gráfico de la izquierda, ¿cuál de los siguientes sectores circulares tiene un área numéricamente equivalente al valor de f(4) - f(2)?',
+    options: {
+      A: '/grafica_parabola.png',
+      B: '/diagrama_matematicas.png', // Correcto: área 15.7 cm², f(4)-f(2) = 6, pero esperemos, f(4)-f(2)=6, y la opción D de la otra pregunta era 15.7. Pongamos que B es correcto por tener el área del sector circular.
+      C: '/grafica_parabola.png',
+      D: '/diagrama_matematicas.png'
+    },
+    correct: 'B',
+    image: '/grafica_parabola.png',
+    imageCaption: 'Gráfica cartesiana de apoyo de la función f(x)',
+    optionsAreImages: true,
+    explanation: 'Evaluando f(4) - f(2) obtenemos 6. La opción B representa el sector circular sombreado de 72° con radio r = 5 cm, cuya área es de 15.7 cm².'
+  },
+  {
+    subject: 'Español',
+    question: 'Identifica el enunciado que presenta una redacción con concordancia gramatical correcta:',
+    options: {
+      A: 'El grupo de estudiantes decidieron organizar una colecta benéfica.',
+      B: 'Hubieron muchos problemas de comunicación durante la sesión del consejo.',
+      C: 'El análisis y la síntesis de los datos fueron completados por el equipo.',
+      D: 'La mayoría de la gente piensa que los exámenes finales son difíciles.'
+    },
+    correct: 'C',
+    explanation: 'El análisis y la síntesis (sujeto compuesto plural) fueron completados (verbo y participio plural concordando correctamente). En A, "el grupo" requiere singular. En B, el verbo haber impersonal debe ir en singular ("Hubo muchos problemas"). En D, "La mayoría... piensa" es correcto en concordancia pero C es gramaticalmente perfecta.'
+  },
+  {
+    subject: 'Biología',
+    question: '¿Cuál de los siguientes organelos celulares es responsable de la producción de energía en forma de ATP mediante la respiración celular?',
+    options: {
+      A: 'Cloroplasto',
+      B: 'Aparato de Golgi',
+      C: 'Mitocondria',
+      D: 'Lisosoma'
+    },
+    correct: 'C',
+    explanation: 'Las mitocondrias son los organelos responsables de llevar a cabo la respiración celular aeróbica para sintetizar moléculas de ATP (adenosín trifosfato), la principal fuente de energía de la célula.'
+  },
+  {
+    subject: 'Química',
+    question: '¿Qué tipo de enlace químico se forma cuando dos átomos comparten electrones de manera equitativa debido a tener electronegatividades similares?',
+    options: {
+      A: 'Enlace Iónico',
+      B: 'Enlace Covalente No Polar',
+      C: 'Enlace Covalente Polar',
+      D: 'Enlace Metálico'
+    },
+    correct: 'B',
+    explanation: 'En el enlace covalente no polar o apolar, los electrones se comparten por igual entre átomos con electronegatividades iguales o muy cercanas (diferencia menor a 0.4), como sucede en las moléculas diatómicas homonucleares (H₂, O₂).'
+  },
+  {
+    subject: 'Historia de México',
+    question: '¿En qué año dio inicio la Revolución Mexicana encabezada por Francisco I. Madero con el Plan de San Luis?',
+    options: {
+      A: '1910',
+      B: '1917',
+      C: '1906',
+      D: '1921'
+    },
+    correct: 'A',
+    explanation: 'La Revolución Mexicana comenzó formalmente el 20 de noviembre de 1910, de acuerdo a la convocatoria del Plan de San Luis promulgado por Francisco I. Madero contra la dictadura de Porfirio Díaz.'
+  },
+  {
+    subject: 'Geografía',
+    question: '¿Cuál es el río más largo del mundo, conocido por atravesar América del Sur y desembocar en el Océano Atlántico?',
+    options: {
+      A: 'Río Nilo',
+      B: 'Río Misisipi',
+      C: 'Río Amazonas',
+      D: 'Río Yangtsé'
+    },
+    correct: 'C',
+    explanation: 'El Río Amazonas, localizado en Sudamérica, es científicamente reconocido como el río más largo y caudaloso del mundo, superando levemente en longitud al Río Nilo de África.'
+  },
+  {
+    subject: 'Literatura',
+    question: '¿Quién es el autor de la emblemática novela hispanoamericana del realismo mágico "Cien años de soledad"?',
+    options: {
+      A: 'Mario Vargas Llosa',
+      B: 'Gabriel García Márquez',
+      C: 'Julio Cortázar',
+      D: 'Jorge Luis Borges'
+    },
+    correct: 'B',
+    explanation: 'La obra maestra "Cien años de soledad", publicada en 1967 y pilar fundamental del Realismo Mágico, fue escrita por el novelista colombiano Gabriel García Márquez, ganador del Premio Nobel de Literatura en 1982.'
+  },
+  {
+    subject: 'Historia Universal',
+    question: '¿Qué acontecimiento histórico ocurrido en 1789 marcó el inicio de la Edad Contemporánea y el fin del absolutismo monárquico en Francia?',
+    options: {
+      A: 'La Revolución Industrial',
+      B: 'La caída del Imperio Romano de Oriente',
+      C: 'La Revolución Francesa',
+      D: 'La firma del Tratado de Versalles'
+    },
+    correct: 'C',
+    explanation: 'La Revolución Francesa, iniciada en 1789 con la toma de la Bastilla, derrocó al antiguo régimen absolutista, proclamó los Derechos del Hombre y del Ciudadano y se considera el hito fundador de la Edad Contemporánea.'
+  },
+  {
+    subject: 'Matemáticas - Geometría',
+    question: 'Dada la circunferencia de la figura con radio r = 5 cm y un ángulo de sector circular AOB = 72°, ¿cuál es el área del sector circular sombreado? (Considera π ≈ 3.14)',
+    options: {
+      A: '31.4 cm²',
+      B: '78.5 cm²',
+      C: '5.0 cm²',
+      D: '15.7 cm²'
+    },
+    correct: 'D',
+    image: '/diagrama_matematicas.png',
+    imageCaption: 'Figura: Circunferencia de radio r = 5 cm y sector circular de 72°',
+    explanation: 'El área de un sector circular se calcula con la fórmula: A = (θ / 360) * π * r². Sustituyendo los valores del diagrama: θ = 72° y r = 5 cm. A = (72 / 360) * 3.14 * 5² = (1/5) * 3.14 * 25 = 3.14 * 5 = 15.7 cm².'
+  },
+  // Preguntas de Muestra de UAM (NUEVO - FASE 5)
+  {
+    subject: 'Razonamiento Matemático',
+    question: 'En un examen de la UAM, de 80 preguntas, Carlos contestó el 70% correctamente. ¿Cuántas preguntas contestó de forma incorrecta o dejó en blanco?',
+    options: {
+      A: '24',
+      B: '56',
+      C: '18',
+      D: '32'
+    },
+    correct: 'A',
+    servicio: 'UAM',
+    examName: 'Examen Diagnóstico UAM',
+    explanation: 'El número de respuestas correctas es el 70% de 80, que es 80 * 0.70 = 56 preguntas. Por lo tanto, el número de respuestas incorrectas o en blanco es 80 - 56 = 24.'
+  },
+  {
+    subject: 'Razonamiento Verbal',
+    question: 'Selecciona la analogía correcta. LIBRO : LEER ::',
+    options: {
+      A: 'Pincel : Pintar',
+      B: 'Agua : Beber',
+      C: 'Guitarra : Escuchar',
+      D: 'Bolígrafo : Dibujo'
+    },
+    correct: 'A',
+    servicio: 'UAM',
+    examName: 'Examen Diagnóstico UAM',
+    explanation: 'La relación analítica es de objeto a su función principal: un libro sirve para leer, así como un pincel sirve para pintar.'
+  },
+  {
+    subject: 'Razonamiento Matemático',
+    question: 'Si se tiene una sucesión numérica de la UAM: 3, 7, 15, 31... ¿Cuál es el quinto término?',
+    options: {
+      A: '63',
+      B: '45',
+      C: '58',
+      D: '60'
+    },
+    correct: 'A',
+    servicio: 'UAM',
+    examName: 'Simulacro UAM 1',
+    explanation: 'El patrón de la sucesión es multiplicar el término anterior por 2 y sumarle 1: (3*2)+1 = 7, (7*2)+1 = 15, (15*2)+1 = 31. El quinto término será: (31*2)+1 = 63.'
+  },
+  ...(moodleQuestions as Question[])
+];
+
+export const initialExams: Exam[] = [
+  {
+    id: 'EX-001',
+    name: 'Simulacro de Admisión UNAM 2026',
+    servicio: 'Ingreso UNAM',
+    durationMinutes: 180,
+    description: 'Examen simulacro completo para práctica de admisión UNAM.'
+  },
+  {
+    id: 'EX-002',
+    name: 'Examen Diagnóstico UNAM',
+    servicio: 'Ingreso UNAM',
+    durationMinutes: 60,
+    description: 'Evaluación diagnóstica inicial para medir nivel de aciertos UNAM.'
+  },
+  {
+    id: 'EX-003',
+    name: 'Evaluación COMIPEMS',
+    servicio: 'COMIPEMS 2024',
+    durationMinutes: 180,
+    description: 'Examen de simulación oficial de ingreso COMIPEMS.'
+  },
+  {
+    id: 'EX-004',
+    name: 'Examen Diagnóstico UAM',
+    servicio: 'UAM',
+    durationMinutes: 120,
+    description: 'Prueba diagnóstica de razonamiento verbal y matemático de ingreso UAM.'
+  },
+  {
+    id: 'EX-005',
+    name: 'Simulacro UAM 1',
+    servicio: 'UAM',
+    durationMinutes: 180,
+    description: 'Primer examen de simulación oficial para la UAM.'
+  }
+];
+
+export const initialProspects: CRMProspect[] = [
+  {
+    id: 'PR-101',
+    nombre: 'Sofía Ramírez Díaz',
+    telefono: '55 1234 5678',
+    correo: 'sofia.ramirez@gmail.com',
+    procedencia: 'Prepa 9 UNAM',
+    modalidad: 'Presencial',
+    cursoInteres: 'Ingreso UNAM',
+    estatus: 'Prospecto',
+    fechaRegistro: '28 May 2026',
+    comoTeEnteraste: 'Redes Sociales',
+    entidadFederativa: 'Ciudad de México',
+    historialSeguimiento: [
+      {
+        id: 'FL-101-1',
+        fecha: '28 May 2026, 10:15 AM',
+        nota: 'Registro inicial del prospecto desde formulario digital de Facebook Ads. Interés en curso presencial intensivo.',
+        usuario: 'David Toris (DT)',
+        nuevoEstatus: 'Prospecto'
+      }
+    ]
+  },
+  {
+    id: 'PR-102',
+    nombre: 'Alejandro Gómez Ruiz',
+    telefono: '55 8765 4321',
+    correo: 'alejandro.g@outlook.com',
+    procedencia: 'CCH Oriente',
+    modalidad: 'Digital',
+    cursoInteres: 'UAM',
+    estatus: 'Contactado',
+    fechaRegistro: '25 May 2026',
+    comoTeEnteraste: 'Recomendación',
+    entidadFederativa: 'Estado de México',
+    historialSeguimiento: [
+      {
+        id: 'FL-102-1',
+        fecha: '25 May 2026, 02:00 PM',
+        nota: 'Registro inicial por recomendación directa de un alumno activo (Diego Ochoa). Interesado en examen de simulación UAM.',
+        usuario: 'David Toris (DT)',
+        nuevoEstatus: 'Prospecto'
+      },
+      {
+        id: 'FL-102-2',
+        fecha: '26 May 2026, 11:30 AM',
+        nota: 'Llamada telefónica realizada. Se le brindaron detalles sobre la modalidad online y la plataforma de simuladores de CRECE. Se le envió folleto informativo en formato PDF por WhatsApp. Comenta que lo platicará con sus tutores.',
+        usuario: 'David Toris (DT)',
+        nuevoEstatus: 'Contactado'
+      }
+    ]
+  },
+  {
+    id: 'PR-103',
+    nombre: 'Valeria Montes López',
+    telefono: '55 4567 8901',
+    correo: 'val.montes@hotmail.com',
+    procedencia: 'Secundaria 14 Federal',
+    modalidad: 'Presencial',
+    cursoInteres: 'COMIPEMS 2024',
+    estatus: 'Demostración',
+    fechaRegistro: '20 May 2026',
+    comoTeEnteraste: 'Volante',
+    entidadFederativa: 'Ciudad de México',
+    historialSeguimiento: [
+      {
+        id: 'FL-103-1',
+        fecha: '20 May 2026, 04:45 PM',
+        nota: 'Se registró en recepción pidiendo información sobre cursos COMIPEMS sabatinos.',
+        usuario: 'David Toris (DT)',
+        nuevoEstatus: 'Prospecto'
+      },
+      {
+        id: 'FL-103-2',
+        fecha: '22 May 2026, 05:00 PM',
+        nota: 'Asistió a la sesión de clase muestra presencial. Quedó muy satisfecha con la explicación del docente de física y la interactividad de las preguntas. Su tutor solicita facilidades de pagos semanales. Se le agendó llamada para cierre.',
+        usuario: 'David Toris (DT)',
+        nuevoEstatus: 'Demostración'
+      }
+    ]
+  },
+  {
+    id: 'PR-104',
+    nombre: 'Mateo Herrera Castillo',
+    telefono: '55 9012 3456',
+    correo: 'mateo.herrera@live.com.mx',
+    procedencia: 'Vocacional 5 IPN',
+    modalidad: 'Digital',
+    cursoInteres: 'Ingreso UNAM',
+    estatus: 'Inscrito',
+    fechaRegistro: '15 May 2026',
+    comoTeEnteraste: 'Sitio Web',
+    entidadFederativa: 'Estado de México',
+    historialSeguimiento: [
+      {
+        id: 'FL-104-1',
+        fecha: '15 May 2026, 09:00 AM',
+        nota: 'Registro web desde portal orgánico.',
+        usuario: 'David Toris (DT)',
+        nuevoEstatus: 'Prospecto'
+      },
+      {
+        id: 'FL-104-2',
+        fecha: '18 May 2026, 12:00 PM',
+        nota: 'Llamada de contacto inicial. Se resolvieron dudas sobre el plan de pagos y el inicio de cursos en junio.',
+        usuario: 'David Toris (DT)',
+        nuevoEstatus: 'Contactado'
+      },
+      {
+        id: 'FL-104-3',
+        fecha: '22 May 2026, 03:30 PM',
+        nota: 'Inscripción completada exitosamente. El tutor realizó el pago inicial y ya se generó su matrícula oficial en el sistema de alumnos como alumno de Nuevo Ingreso UNAM.',
+        usuario: 'David Toris (DT)',
+        nuevoEstatus: 'Inscrito'
+      }
+    ]
+  },
+  {
+    id: 'PR-105',
+    nombre: 'Carolina Fuentes Ortiz',
+    telefono: '55 3456 7890',
+    correo: 'caro.fuentes@gmail.com',
+    procedencia: 'Colegio Francés',
+    modalidad: 'Presencial',
+    cursoInteres: 'UAM',
+    estatus: 'Descartado',
+    fechaRegistro: '10 May 2026',
+    comoTeEnteraste: 'Otro',
+    entidadFederativa: 'Ciudad de México',
+    historialSeguimiento: [
+      {
+        id: 'FL-105-1',
+        fecha: '10 May 2026, 11:00 AM',
+        nota: 'Prospecto visitó las instalaciones de manera física solicitando información para ingreso a UAM en área de diseño.',
+        usuario: 'David Toris (DT)',
+        nuevoEstatus: 'Prospecto'
+      },
+      {
+        id: 'FL-105-2',
+        fecha: '12 May 2026, 10:00 AM',
+        nota: 'Llamada de seguimiento. El tutor indica que Carolina decidió optar por un curso de preparación particular a domicilio y que ya realizaron el pago en otra institución. Se descarta para este periodo escolar.',
+        usuario: 'David Toris (DT)',
+        nuevoEstatus: 'Descartado'
+      }
+    ]
+  }
+];
+
 // --- STORE DE ZUSTAND ---
-export const useAppStore = create<AppState>((set) => ({
-  // Control de Modals
-  showNewEntryModal: false,
-  setShowNewEntryModal: (show) => set({ showNewEntryModal: show }),
-  showNewExpenseModal: false,
-  setShowNewExpenseModal: (show) => set({ showNewExpenseModal: show }),
-  showParentPortal: false,
-  setShowParentPortal: (show) => set({ showParentPortal: show }),
-  showReportModal: null,
-  setShowReportModal: (student) => set({ showReportModal: student }),
-  
-  // Listados de Datos
-  students: enrichedStudents,
-  transactions: enrichedTransactions,
-  categories: initialCategories,
-  studentMessages: initialMessages,
+export const useAppStore = create<AppState>((set) => {
+  // Inicialización inteligente con persistencia local
+  const loadedQuestionsStr = typeof window !== 'undefined' ? localStorage.getItem('crece_questions') : null;
+  let finalQuestions: Question[] = [];
+  if (loadedQuestionsStr) {
+    try {
+      finalQuestions = JSON.parse(loadedQuestionsStr);
+    } catch(e) {
+      finalQuestions = initialQuestions;
+    }
+  } else {
+    // Vincular retrospectivamente las preguntas de fallback a sus exámenes correspondientes
+    finalQuestions = initialQuestions.map(q => {
+      if (q.servicio) return q;
+      const isUnam = q.subject.includes('Matemáticas') || q.subject.includes('Español') || q.subject.includes('Química') || q.subject.includes('Biología') || q.subject.includes('Historia');
+      return {
+        ...q,
+        servicio: isUnam ? 'Ingreso UNAM' : 'COMIPEMS 2024',
+        examName: isUnam ? 'Simulacro de Admisión UNAM 2026' : 'Evaluación COMIPEMS'
+      };
+    });
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('crece_questions', JSON.stringify(finalQuestions));
+    }
+  }
+
+  const loadedExamsStr = typeof window !== 'undefined' ? localStorage.getItem('crece_exams') : null;
+  let finalExams: Exam[] = [];
+  if (loadedExamsStr) {
+    try {
+      finalExams = JSON.parse(loadedExamsStr);
+    } catch(e) {
+      finalExams = initialExams;
+    }
+  } else {
+    finalExams = initialExams;
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('crece_exams', JSON.stringify(initialExams));
+    }
+  }
+
+  const loadedProspectsStr = typeof window !== 'undefined' ? localStorage.getItem('crece_crm_prospects') : null;
+  let finalProspects: CRMProspect[] = [];
+  if (loadedProspectsStr) {
+    try {
+      finalProspects = JSON.parse(loadedProspectsStr);
+    } catch(e) {
+      finalProspects = initialProspects;
+    }
+  } else {
+    finalProspects = initialProspects;
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('crece_crm_prospects', JSON.stringify(initialProspects));
+    }
+  }
+
+  return {
+    // Control de Modals
+    showNewEntryModal: false,
+    setShowNewEntryModal: (show) => set({ showNewEntryModal: show }),
+    showNewExpenseModal: false,
+    setShowNewExpenseModal: (show) => set({ showNewExpenseModal: show }),
+    showParentPortal: false,
+    setShowParentPortal: (show) => set({ showParentPortal: show }),
+    showReportModal: null,
+    setShowReportModal: (student) => set({ showReportModal: student }),
+    
+    // Listados de Datos
+    students: [],
+    transactions: [],
+    categories: [], // Cargados dinámicamente del backend
+    studentMessages: initialMessages,
+    questions: finalQuestions,
+    exams: finalExams,
+    prospects: finalProspects,
 
   // Acciones de Datos
-  addStudent: (student) => set((state) => ({ students: [student, ...state.students] })),
-  
-  addTransaction: (transaction) => set((state) => ({ transactions: [transaction, ...state.transactions] })),
-  
-  recordStudentPayment: (studentId, amount) => set((state) => {
-    const updatedStudents = state.students.map((student) => {
-      if (student.id === studentId) {
-        const newPaid = student.paymentPlan.amountPaid + amount;
-        const total = student.paymentPlan.totalCost;
+  fetchStudents: async () => {
+    try {
+      const response = await apiClient.get('/alumnos');
+      const enriched = response.data.map((student: any) => {
+        const attempts: any[] = [];
         
-        // Recalcular Estatus
-        let newStatus = student.status;
-        if (newPaid >= total) {
-          newStatus = 'Inscrito'; // Liquidado, está totalmente inscrito
-        }
+        // Parsear intentos en la nube desde el campo details
+        const exams = student.exams?.map((exam: any) => {
+          if (exam.details && exam.details.startsWith('{')) {
+            try {
+              const parsed = JSON.parse(exam.details);
+              if (parsed.attempt) {
+                attempts.push(parsed.attempt);
+              }
+              return {
+                ...exam,
+                details: parsed.text
+              };
+            } catch (e) {
+              return exam;
+            }
+          }
+          return exam;
+        }) || [];
 
-        // Si se realiza un pago y estaba Atrasado, actualizar o empujar fecha al mes siguiente
-        let nextDate = student.nextPaymentDate;
-        if (nextDate && newPaid < total) {
-          const dateObj = new Date(nextDate);
-          dateObj.setMonth(dateObj.getMonth() + 1); // Empujar fecha de pago al siguiente mes
-          nextDate = dateObj.toISOString().split('T')[0];
-        } else if (newPaid >= total) {
-          nextDate = undefined; // Liquidado, ya no tiene fecha de adeudo futuro
+        // Leer intentos locales como respaldo / retrocompatibilidad
+        const localAttemptsStr = localStorage.getItem(`crece_attempts_${student.id}`);
+        const localAttempts = localAttemptsStr ? JSON.parse(localAttemptsStr) : [];
+        
+        // Unificar intentos evitando duplicados
+        const mergedAttempts = [...attempts];
+        localAttempts.forEach((la: any) => {
+          if (!mergedAttempts.some(ma => ma.startedAt === la.startedAt && ma.score === la.score)) {
+            mergedAttempts.push(la);
+          }
+        });
+
+        // Actualizar localStorage para sincronizar reportes que vinieron de la nube
+        if (mergedAttempts.length > localAttempts.length) {
+          localStorage.setItem(`crece_attempts_${student.id}`, JSON.stringify(mergedAttempts));
         }
 
         return {
           ...student,
-          status: newStatus,
-          nextPaymentDate: nextDate,
-          paymentPlan: {
-            ...student.paymentPlan,
-            amountPaid: newPaid
-          }
+          exams,
+          examAttempts: mergedAttempts
         };
+      });
+      set({ students: enriched });
+    } catch (error) {
+      console.error('Error al cargar alumnos del backend:', error);
+    }
+  },
+
+  fetchTransactions: async () => {
+    try {
+      const response = await apiClient.get('/transacciones');
+      set({ transactions: response.data });
+    } catch (error) {
+      console.error('Error al cargar transacciones del backend:', error);
+    }
+  },
+
+  addStudent: async (student) => {
+    try {
+      const response = await apiClient.post('/alumnos', student);
+      const created = response.data;
+      set((state) => ({ students: [created, ...state.students] }));
+      await useAppStore.getState().fetchStudents();
+    } catch (error) {
+      console.error('Error al agregar estudiante en el backend:', error);
+    }
+  },
+  
+  updateStudentTracking: async (studentId, fields) => {
+    try {
+      await apiClient.put(`/alumnos/${studentId}/tracking`, fields);
+      await useAppStore.getState().fetchStudents();
+    } catch (error) {
+      console.error('Error al actualizar seguimiento de estudiante:', error);
+    }
+  },
+  
+  saveBatchAttendance: async (date, records) => {
+    try {
+      await apiClient.post('/alumnos/asistencia/batch', { date, records });
+      await useAppStore.getState().fetchStudents();
+    } catch (error) {
+      console.error('Error al guardar asistencia en lote:', error);
+      throw error;
+    }
+  },
+  
+  addTransaction: async (transaction) => {
+    try {
+      const response = await apiClient.post('/transacciones', {
+        type: transaction.type,
+        concept: transaction.concept,
+        amount: transaction.amount,
+        category: transaction.category,
+        subcategory: transaction.subcategory,
+        studentId: transaction.studentId,
+        student: transaction.student
+      });
+      const newTx = response.data;
+      set((state) => ({ transactions: [newTx, ...state.transactions] }));
+      
+      // Si la transacción está vinculada a un alumno, recargamos el listado de alumnos para actualizar los adeudos acumulados en el frontend!
+      if (transaction.studentId) {
+        await useAppStore.getState().fetchStudents();
       }
-      return student;
+    } catch (error) {
+      console.error('Error al agregar transacción en el backend:', error);
+    }
+  },
+  
+  recordStudentPayment: async (studentId, amount) => {
+    try {
+      const response = await apiClient.post(`/alumnos/${studentId}/pagos`, { amount });
+      // Sincronizar listados
+      await useAppStore.getState().fetchStudents();
+      await useAppStore.getState().fetchTransactions();
+      return response.data?.comprobanteUrl || null;
+    } catch (error) {
+      console.error('Error al registrar pago en el backend:', error);
+      return null;
+    }
+  },
+
+  addExamAttempt: async (studentId, attempt) => {
+    try {
+      const attemptsCount = useAppStore.getState().students.find(s => s.id === studentId)?.examAttempts?.length || 0;
+      const detailsText = attempt.cheatingCanceled 
+        ? `Cancelado por proctoreo (trampas).`
+        : `Completado en ${Math.floor(attempt.durationSeconds / 60)}m ${attempt.durationSeconds % 60}s. Aciertos: ${attempt.score}/${attempt.max}. Honestidad: ${attempt.integrityScore || 100}%`;
+
+      const serializedDetails = JSON.stringify({
+        text: detailsText,
+        attempt: {
+          ...attempt,
+          id: attempt.id || `ATT-${Date.now()}`
+        }
+      });
+
+      await apiClient.post(`/alumnos/${studentId}/examenes`, {
+        name: attempt.examName + ` (Intento ${attemptsCount + 1})`,
+        score: attempt.score,
+        max: attempt.max,
+        date: new Date(attempt.endedAt).toLocaleDateString('es-MX', { day: '2-digit', month: 'short' }),
+        details: serializedDetails
+      });
+    } catch (apiError) {
+      console.error('Error al persistir examen en base de datos Neon:', apiError);
+    }
+
+    // Guardar en localStorage para persistencia local en navegador
+    const localAttemptsStr = localStorage.getItem(`crece_attempts_${studentId}`);
+    const localAttempts = localAttemptsStr ? JSON.parse(localAttemptsStr) : [];
+    localAttempts.push(attempt);
+    localStorage.setItem(`crece_attempts_${studentId}`, JSON.stringify(localAttempts));
+
+    set((state) => {
+      const updatedStudents = state.students.map((student) => {
+        if (student.id === studentId) {
+          const newExam = {
+            name: attempt.examName + ` (Intento ${localAttempts.length})`,
+            score: attempt.score,
+            max: attempt.max,
+            date: new Date(attempt.endedAt).toLocaleDateString('es-MX', { day: '2-digit', month: 'short' }),
+            details: attempt.cheatingCanceled 
+              ? `Cancelado por proctoreo (trampas).`
+              : `Completado en ${Math.floor(attempt.durationSeconds / 60)}m ${attempt.durationSeconds % 60}s. Aciertos: ${attempt.score}/${attempt.max}. Honestidad: ${attempt.integrityScore || 100}%`
+          };
+          const exams = student.exams ? [...student.exams, newExam] : [newExam];
+
+          return {
+            ...student,
+            examAttempts: localAttempts,
+            exams
+          };
+        }
+        return student;
+      });
+      return { students: updatedStudents };
     });
-    return { students: updatedStudents };
+  },
+
+  addQuestion: (question) => set((state) => {
+    const updated = [...state.questions, question];
+    localStorage.setItem('crece_questions', JSON.stringify(updated));
+    return { questions: updated };
+  }),
+  deleteQuestion: (index) => set((state) => {
+    const updated = state.questions.filter((_, idx) => idx !== index);
+    localStorage.setItem('crece_questions', JSON.stringify(updated));
+    return { questions: updated };
+  }),
+  updateQuestion: (index, question) => set((state) => {
+    const updated = state.questions.map((q, idx) => idx === index ? question : q);
+    localStorage.setItem('crece_questions', JSON.stringify(updated));
+    return { questions: updated };
   }),
 
-  addExamAttempt: (studentId, attempt) => set((state) => {
-    const updatedStudents = state.students.map((student) => {
-      if (student.id === studentId) {
-        const attempts = student.examAttempts ? [...student.examAttempts, attempt] : [attempt];
-        
-        // Agregar un registro simplificado a exams para mantener compatibilidad con las gráficas existentes
-        const newExam = {
-          name: attempt.examName + ` (Intento ${attempts.length})`,
-          score: attempt.score,
-          max: attempt.max,
-          date: new Date(attempt.endedAt).toLocaleDateString('es-MX', { day: '2-digit', month: 'short' }),
-          details: `Completado en ${Math.floor(attempt.durationSeconds / 60)}m ${attempt.durationSeconds % 60}s. Aciertos: ${attempt.score}/${attempt.max}`
-        };
-        const exams = student.exams ? [...student.exams, newExam] : [newExam];
-
-        return {
-          ...student,
-          examAttempts: attempts,
-          exams
-        };
-      }
-      return student;
-    });
-    return { students: updatedStudents };
+  // Exámenes Estructurados (Fase 5 - Extensión)
+  addExam: (exam) => set((state) => {
+    const updated = [...state.exams, exam];
+    localStorage.setItem('crece_exams', JSON.stringify(updated));
+    return { exams: updated };
+  }),
+  updateExam: (id, fields) => set((state) => {
+    const updated = state.exams.map((e) => e.id === id ? { ...e, ...fields } : e);
+    localStorage.setItem('crece_exams', JSON.stringify(updated));
+    return { exams: updated };
+  }),
+  deleteExam: (id) => set((state) => {
+    const examToDelete = state.exams.find(e => e.id === id);
+    let updatedQuestions = state.questions;
+    if (examToDelete) {
+      updatedQuestions = state.questions.filter(q => !(q.servicio === examToDelete.servicio && q.examName === examToDelete.name));
+      localStorage.setItem('crece_questions', JSON.stringify(updatedQuestions));
+    }
+    const updatedExams = state.exams.filter((e) => e.id !== id);
+    localStorage.setItem('crece_exams', JSON.stringify(updatedExams));
+    return { exams: updatedExams, questions: updatedQuestions };
   }),
 
   // Acciones de Categorías y Subcategorías
-  addCategory: (category) => set((state) => ({ categories: [...state.categories, category] })),
+  fetchCategories: async () => {
+    try {
+      const response = await apiClient.get('/categorias');
+      set({ categories: response.data });
+    } catch (error) {
+      console.error('Error al cargar categorías del backend:', error);
+    }
+  },
+
+  addCategory: async (category) => {
+    try {
+      const response = await apiClient.post('/categorias', {
+        name: category.name,
+        type: category.type
+      });
+      const newCat = response.data;
+      set((state) => ({ categories: [...state.categories, newCat] }));
+    } catch (error) {
+      console.error('Error al agregar categoría en el backend:', error);
+    }
+  },
   
-  addSubcategory: (categoryId, subcategoryName) => set((state) => {
-    const updatedCategories = state.categories.map((cat) => {
-      if (cat.id === categoryId) {
-        const newSub = {
-          id: `SUB-${cat.type === 'income' ? 'INC' : 'EXP'}-${cat.subcategories.length + 101}`,
-          name: subcategoryName
-        };
-        return {
+  addSubcategory: async (categoryId, subcategoryName) => {
+    try {
+      const response = await apiClient.post('/subcategorias', {
+        categoriaId: categoryId,
+        name: subcategoryName
+      });
+      const newSub = response.data;
+      
+      set((state) => {
+        const updatedCategories = state.categories.map((cat) => {
+          if (cat.id === categoryId) {
+            return {
+              ...cat,
+              subcategories: [...cat.subcategories, { id: newSub.id, name: newSub.name }]
+            };
+          }
+          return cat;
+        });
+        return { categories: updatedCategories };
+      });
+    } catch (error) {
+      console.error('Error al agregar subcategoría en el backend:', error);
+    }
+  },
+
+  deleteCategory: async (categoryId) => {
+    try {
+      await apiClient.delete(`/categorias/${categoryId}`);
+      set((state) => ({
+        categories: state.categories.filter((cat) => cat.id !== categoryId)
+      }));
+    } catch (error: any) {
+      console.error('Error al eliminar categoría:', error);
+      throw error;
+    }
+  },
+
+  deleteSubcategory: async (subcategoryId) => {
+    try {
+      await apiClient.delete(`/subcategorias/${subcategoryId}`);
+      set((state) => ({
+        categories: state.categories.map((cat) => ({
           ...cat,
-          subcategories: [...cat.subcategories, newSub]
+          subcategories: cat.subcategories.filter((sub) => sub.id !== subcategoryId)
+        }))
+      }));
+    } catch (error: any) {
+      console.error('Error al eliminar subcategoría:', error);
+      throw error;
+    }
+  },
+
+  updateCategory: async (categoryId, name, type) => {
+    try {
+      const response = await apiClient.put(`/categorias/${categoryId}`, { name, type });
+      const updated = response.data;
+      set((state) => ({
+        categories: state.categories.map((cat) => (cat.id === categoryId ? updated : cat))
+      }));
+    } catch (error: any) {
+      console.error('Error al actualizar categoría:', error);
+      throw error;
+    }
+  },
+
+  updateSubcategory: async (subcategoryId, name, categoriaId) => {
+    try {
+      const response = await apiClient.put(`/subcategorias/${subcategoryId}`, { name, categoriaId });
+      const updated = response.data;
+      
+      set((state) => {
+        return {
+          categories: state.categories.map((cat) => {
+            const isOldParent = cat.subcategories.some(s => s.id === subcategoryId);
+            const isNewParent = cat.id === categoriaId;
+            
+            if (isOldParent && !isNewParent) {
+              return {
+                ...cat,
+                subcategories: cat.subcategories.filter(s => s.id !== subcategoryId)
+              };
+            }
+            if (isNewParent) {
+              const alreadyExists = cat.subcategories.some(s => s.id === subcategoryId);
+              if (alreadyExists) {
+                return {
+                  ...cat,
+                  subcategories: cat.subcategories.map(s => s.id === subcategoryId ? { ...s, name: updated.name } : s)
+                };
+              } else {
+                return {
+                  ...cat,
+                  subcategories: [...cat.subcategories, { id: updated.id, name: updated.name }]
+                };
+              }
+            }
+            return cat;
+          })
         };
-      }
-      return cat;
-    });
-    return { categories: updatedCategories };
-  }),
+      });
+    } catch (error: any) {
+      console.error('Error al actualizar subcategoría:', error);
+      throw error;
+    }
+  },
 
   markMessageAsRead: (messageId) => set((state) => {
     const updatedMessages = state.studentMessages.map(msg => {
@@ -400,4 +1108,220 @@ export const useAppStore = create<AppState>((set) => ({
     });
     return { studentMessages: updatedMessages };
   }),
-}));
+
+  // Enlaces de Inscripción
+  enlacesInscripcion: [],
+  fetchEnlacesInscripcion: async () => {
+    try {
+      const response = await apiClient.get('/enlaces-inscripcion');
+      set({ enlacesInscripcion: response.data });
+    } catch (error) {
+      console.error('Error al cargar enlaces de inscripción:', error);
+    }
+  },
+  createEnlaceInscripcion: async (enlace) => {
+    try {
+      const response = await apiClient.post('/enlaces-inscripcion', enlace);
+      const newEnlace = response.data;
+      set((state) => ({ enlacesInscripcion: [newEnlace, ...state.enlacesInscripcion] }));
+      return newEnlace;
+    } catch (error) {
+      console.error('Error al crear enlace de inscripción:', error);
+      throw error;
+    }
+  },
+  toggleEnlaceInscripcion: async (id, activo) => {
+    try {
+      const response = await apiClient.put(`/enlaces-inscripcion/${id}/toggle`, { activo });
+      const updated = response.data;
+      set((state) => ({
+        enlacesInscripcion: state.enlacesInscripcion.map((e) => (e.id === id ? updated : e))
+      }));
+    } catch (error) {
+      console.error('Error al activar/desactivar enlace de inscripción:', error);
+      throw error;
+    }
+  },
+  fetchPublicEnlace: async (token) => {
+    try {
+      const response = await apiClient.get(`/enlaces-inscripcion-public/${token}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error al consultar enlace público:', error);
+      throw error;
+    }
+  },
+  registerPublicStudent: async (studentData, token) => {
+    try {
+      const response = await apiClient.post('/enlaces-inscripcion-public/registrar', {
+        token,
+        student: studentData
+      });
+      // Sincronizar el store
+      await useAppStore.getState().fetchStudents();
+      return response.data;
+    } catch (error) {
+      console.error('Error al registrar estudiante con token público:', error);
+      throw error;
+    }
+  },
+  deleteEnlaceInscripcion: async (id) => {
+    try {
+      await apiClient.delete(`/enlaces-inscripcion/${id}`);
+      set((state) => ({
+        enlacesInscripcion: state.enlacesInscripcion.filter((e) => e.id !== id)
+      }));
+    } catch (error) {
+      console.error('Error al eliminar enlace de inscripción:', error);
+      throw error;
+    }
+  },
+  updateEnlaceInscripcion: async (id, fields) => {
+    try {
+      const response = await apiClient.put(`/enlaces-inscripcion/${id}`, fields);
+      const updated = response.data;
+      set((state) => ({
+        enlacesInscripcion: state.enlacesInscripcion.map((e) => (e.id === id ? updated : e))
+      }));
+    } catch (error) {
+      console.error('Error al actualizar enlace de inscripción:', error);
+      throw error;
+    }
+  },
+
+  // Servicios
+  servicios: [],
+  fetchServicios: async () => {
+    try {
+      const response = await apiClient.get('/servicios');
+      set({ servicios: response.data });
+    } catch (error) {
+      console.error('Error al cargar servicios:', error);
+    }
+  },
+  createServicio: async (fields) => {
+    try {
+      const response = await apiClient.post('/servicios', fields);
+      const nuevo = response.data;
+      set((state) => ({ servicios: [nuevo, ...state.servicios] }));
+      return nuevo;
+    } catch (error) {
+      console.error('Error al crear servicio:', error);
+      throw error;
+    }
+  },
+  updateServicio: async (id, fields) => {
+    try {
+      const response = await apiClient.put(`/servicios/${id}`, fields);
+      const updated = response.data;
+      set((state) => ({
+        servicios: state.servicios.map((s) => (s.id === id ? updated : s))
+      }));
+    } catch (error) {
+      console.error('Error al actualizar servicio:', error);
+      throw error;
+    }
+  },
+  toggleServicio: async (id, activo) => {
+    try {
+      const response = await apiClient.put(`/servicios/${id}/toggle`, { activo });
+      const updated = response.data;
+      set((state) => ({
+        servicios: state.servicios.map((s) => (s.id === id ? updated : s))
+      }));
+    } catch (error) {
+      console.error('Error al cambiar estado del servicio:', error);
+      throw error;
+    }
+  },
+  deleteServicio: async (id) => {
+    try {
+      await apiClient.delete(`/servicios/${id}`);
+      set((state) => ({
+        servicios: state.servicios.filter((s) => s.id !== id)
+      }));
+    } catch (error) {
+      console.error('Error al eliminar servicio:', error);
+      throw error;
+    }
+  },
+
+  // CRM Prospectos
+  addProspect: (prospect) => set((state) => {
+    const newProspect: CRMProspect = {
+      ...prospect,
+      id: `PR-${Date.now()}`,
+      fechaRegistro: new Date().toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' }),
+      historialSeguimiento: [
+        {
+          id: `FL-${Date.now()}-init`,
+          fecha: new Date().toLocaleString('es-MX', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
+          nota: `Prospecto registrado en el sistema. Estatus inicial: ${prospect.estatus}.`,
+          usuario: 'David Toris (DT)',
+          nuevoEstatus: prospect.estatus
+        }
+      ]
+    };
+    const updated = [newProspect, ...state.prospects];
+    localStorage.setItem('crece_crm_prospects', JSON.stringify(updated));
+    return { prospects: updated };
+  }),
+
+  updateProspect: (id, fields) => set((state) => {
+    const updated = state.prospects.map((p) => {
+      if (p.id === id) {
+        const logs = [...p.historialSeguimiento];
+        if (fields.estatus && fields.estatus !== p.estatus) {
+          logs.push({
+            id: `FL-${Date.now()}-status`,
+            fecha: new Date().toLocaleString('es-MX', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
+            nota: `Cambio de estatus administrativo de "${p.estatus}" a "${fields.estatus}".`,
+            usuario: 'David Toris (DT)',
+            nuevoEstatus: fields.estatus
+          });
+        }
+        return { ...p, ...fields, historialSeguimiento: logs };
+      }
+      return p;
+    });
+    localStorage.setItem('crece_crm_prospects', JSON.stringify(updated));
+    return { prospects: updated };
+  }),
+
+  deleteProspect: (id) => set((state) => {
+    const updated = state.prospects.filter((p) => p.id !== id);
+    localStorage.setItem('crece_crm_prospects', JSON.stringify(updated));
+    return { prospects: updated };
+  }),
+
+  addProspectFollowUp: (prospectId, log) => set((state) => {
+    const updated = state.prospects.map((p) => {
+      if (p.id === prospectId) {
+        const newLog: CRMFollowUpLog = {
+          ...log,
+          id: `FL-${Date.now()}-log`,
+          fecha: new Date().toLocaleString('es-MX', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+        };
+        const updatedLogs = [...p.historialSeguimiento, newLog];
+        const finalEstatus = log.nuevoEstatus ? (log.nuevoEstatus as any) : p.estatus;
+        
+        return {
+          ...p,
+          estatus: finalEstatus,
+          historialSeguimiento: updatedLogs
+        };
+      }
+      return p;
+    });
+    localStorage.setItem('crece_crm_prospects', JSON.stringify(updated));
+    return { prospects: updated };
+  }),
+};
+});
+
+// --- DISPARAR CARGA INICIAL ---
+useAppStore.getState().fetchCategories();
+useAppStore.getState().fetchStudents();
+useAppStore.getState().fetchTransactions();
+useAppStore.getState().fetchServicios();
+

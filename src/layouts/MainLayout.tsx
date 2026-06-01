@@ -1,8 +1,8 @@
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { 
   LayoutDashboard, Users, CreditCard, GraduationCap, 
-  MessageSquare, Settings, Search, Smartphone, Bell,
-  ClipboardList
+  MessageSquare, Search, Smartphone, Bell,
+  ClipboardList, Settings, Link2, Briefcase, HeartHandshake
 } from 'lucide-react';
 import { useAppStore } from '../store/useAppStore';
 
@@ -13,36 +13,70 @@ export default function MainLayout() {
   const getHeaderTitle = () => {
     const path = location.pathname;
     if (path === '/') return 'Dashboard';
+    if (path === '/crm') return 'CRM Prospectos';
     if (path.startsWith('/alumnos')) return 'Alumnos';
     if (path === '/finanzas') return 'Finanzas';
     if (path === '/academico') return 'Académico';
     if (path === '/comunicacion') return 'Comunicación';
-    if (path === '/configuracion') return 'Configuración';
+    if (path === '/categorias') return 'Categorías Financieras';
+    if (path === '/enlaces') return 'Asignación de Costos';
+    if (path === '/servicios') return 'Catálogo de Servicios';
     if (path === '/examen') return 'Exámenes';
     return '';
   };
 
-  const navItems = [
-    { name: 'Dashboard', path: '/', icon: LayoutDashboard },
-    { name: 'Alumnos', path: '/alumnos', icon: Users },
-    { name: 'Finanzas', path: '/finanzas', icon: CreditCard },
-    { name: 'Académico', path: '/academico', icon: GraduationCap },
-    { name: 'Exámenes', path: '/examen', icon: ClipboardList },
-    { name: 'Comunicación', path: '/comunicacion', icon: MessageSquare },
-    { name: 'Configuración', path: '/configuracion', icon: Settings },
-  ];
+
 
   return (
     <div className="app-container">
       {/* SIDEBAR */}
       <aside className="sidebar">
         <div className="logo-container">
-          <div className="logo-icon">C</div>
+          <div className="logo-icon-svg" style={{ color: 'var(--brand-yellow)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <svg viewBox="0 0 24 24" width="34" height="34" fill="currentColor" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.15))' }}>
+              {/* Birrete Top */}
+              <path d="M12 2L2 7.5L12 13L22 7.5L12 2Z" fill="var(--brand-yellow)" />
+              {/* Birrete Base */}
+              <path d="M17 10.25V14.5C17 16.5 14.75 18 12 18C9.25 18 7 16.5 7 14.5V10.25L12 13L17 10.25Z" fill="#ffffff" />
+              {/* Borla / Tassel */}
+              <path d="M18 7.5V12.5" stroke="var(--brand-yellow)" strokeWidth="1.5" strokeLinecap="round" />
+              <path d="M17 12.5H19V14.5H17V12.5Z" fill="var(--brand-yellow)" />
+            </svg>
+          </div>
           <div className="logo-text">CRECE</div>
         </div>
         
         <nav className="nav-menu">
-          {navItems.map((item) => (
+          {/* Módulos Principales */}
+          {[
+            { name: 'Dashboard', path: '/', icon: LayoutDashboard },
+            { name: 'CRM Prospectos', path: '/crm', icon: HeartHandshake },
+            { name: 'Alumnos', path: '/alumnos', icon: Users },
+            { name: 'Finanzas', path: '/finanzas', icon: CreditCard },
+            { name: 'Académico', path: '/academico', icon: GraduationCap },
+            { name: 'Exámenes', path: '/examen', icon: ClipboardList },
+            { name: 'Comunicación', path: '/comunicacion', icon: MessageSquare },
+          ].map((item) => (
+            <NavLink 
+              key={item.name}
+              to={item.path}
+              end={item.path === '/'}
+              className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
+            >
+              <item.icon size={20} />
+              <span>{item.name}</span>
+            </NavLink>
+          ))}
+
+          {/* Sección Configuración */}
+          <div style={{ padding: '16px 16px 6px', fontSize: '10px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '1px', color: 'rgba(255, 255, 255, 0.4)', opacity: 0.8 }}>
+            Configuración
+          </div>
+          {[
+            { name: 'Categorías', path: '/categorias', icon: Settings },
+            { name: 'Servicios', path: '/servicios', icon: Briefcase },
+            { name: 'Costos', path: '/enlaces', icon: Link2 },
+          ].map((item) => (
             <NavLink 
               key={item.name}
               to={item.path}
@@ -64,10 +98,10 @@ export default function MainLayout() {
               <Search size={18} className="text-secondary" />
               <input type="text" placeholder="Buscar alumno, recibo o clase..." className="search-input" />
             </div>
-            <button className="btn-secondary" style={{ padding: '8px 16px', gap: '8px', background: 'var(--brand-blue)', color: 'white', border: 'none', cursor: 'pointer' }} onClick={() => setShowParentPortal(true)}>
+            <button className="btn-secondary" style={{ padding: '10px 20px', gap: '8px', background: 'rgba(15, 56, 105, 0.06)', color: 'var(--brand-blue)', border: '1px solid rgba(15, 56, 105, 0.15)', borderRadius: 'var(--radius-md)', cursor: 'pointer', display: 'flex', alignItems: 'center', height: '44px', fontWeight: '600' }} onClick={() => setShowParentPortal(true)}>
               <Smartphone size={16} /> Ver como Papá
             </button>
-            <button className="btn-secondary" style={{ padding: '8px 16px', gap: '8px', background: 'linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%)', color: 'white', border: 'none', cursor: 'pointer', boxShadow: '0 4px 10px rgba(30, 58, 138, 0.2)', display: 'flex', alignItems: 'center' }} onClick={() => window.open('/estudiante', '_blank')}>
+            <button className="btn-primary" style={{ padding: '10px 20px', gap: '8px', background: 'var(--gradient-accent)', color: '#081c33', border: 'none', borderRadius: 'var(--radius-md)', cursor: 'pointer', boxShadow: '0 4px 10px rgba(229, 169, 59, 0.25)', display: 'flex', alignItems: 'center', height: '44px', width: 'auto' }} onClick={() => window.open('/estudiante', '_blank')}>
               <GraduationCap size={16} /> Ver como Alumno
             </button>
             <button className="icon-btn">

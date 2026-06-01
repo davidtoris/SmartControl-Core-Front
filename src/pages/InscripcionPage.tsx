@@ -1,16 +1,26 @@
-import { useState, useRef, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useRef, useEffect, useMemo } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { 
   ChevronRight, ChevronLeft, User, Phone, Mail, Award, BookOpen, 
   MapPin, Clock, UploadCloud, CheckCircle2, AlertCircle, FileText, 
-  Wallet, QrCode, Sparkles, Printer, UserCheck, ShieldCheck, CreditCard,
-  Percent, Sparkle, HelpingHand
+  Wallet, QrCode, Sparkles, Printer, UserCheck, ShieldCheck
 } from 'lucide-react';
 import { useAppStore } from '../store/useAppStore';
-import type { Student } from '../store/useAppStore';
+
+// --- Mapeo de descripciones e iconos para los documentos requeridos ---
+const DOCS_CONFIG: Record<string, { desc: string }> = {
+  'Acta de Nacimiento': { desc: 'Copia certificada legible.' },
+  'CURP': { desc: 'Descarga reciente del portal Segob.' },
+  'Foto': { desc: 'Fotografía infantil formal reciente.' },
+  'Comprobante de Domicilio': { desc: 'Recibo de luz, agua o teléfono.' },
+  'INE/IFE': { desc: 'Copia de identificación oficial de tutor o alumno.' },
+  'Certificado Primaria': { desc: 'Certificado oficial de nivel primaria.' },
+  'Certificado Secundaria': { desc: 'Certificado oficial de nivel secundaria.' },
+  'Certificado de Estudios': { desc: 'Secundaria o Bachillerato.' }
+};
 
 // --- Esquema de Validación con Zod ---
 const contactSchema = z.object({
@@ -37,13 +47,13 @@ type ContactFormData = z.infer<typeof contactSchema>;
 
 export default function InscripcionPage() {
   const navigate = useNavigate();
-  const { addStudent, students } = useAppStore();
+  const { addStudent, fetchPublicEnlace, registerPublicStudent } = useAppStore();
+  const [searchParams] = useSearchParams();
 
   // Paso actual (1 a 5)
   const [step, setStep] = useState(1);
 
   // --- Datos del Formulario ---
-  // Paso 1: Datos Personales (Gestionados reactivamente con React Hook Form)
   const { 
     register, 
     handleSubmit, 
@@ -52,7 +62,7 @@ export default function InscripcionPage() {
     getValues
   } = useForm<ContactFormData>({
     resolver: zodResolver(contactSchema),
-    mode: 'onChange', // Valida en tiempo real al escribir
+    mode: 'onChange',
     defaultValues: {
       nombre: '',
       correo: '',
@@ -62,23 +72,61 @@ export default function InscripcionPage() {
     }
   });
 
+  // --- Parámetros de Enlace Personalizado ---
+  const paramCurso = searchParams.get('curso'); // UNAM, COMIPEMS, IPN
+  const paramInscripcion = searchParams.get('inscripcion'); // e.g. 0 o 500
+  const paramContado = searchParams.get('contado'); // e.g. 9000
+  const paramPagos = searchParams.get('pagos'); // e.g. 11000
+  const paramPlazos = searchParams.get('plazos'); // e.g. 6 o 8
+
+  // --- Estados de Token Seguro ---
+  const token = searchParams.get('token');
+  const [loadingToken, setLoadingToken] = useState(!!token);
+  const [tokenError, setTokenError] = useState<string | null>(null);
+  const [enlaceData, setEnlaceData] = useState<any>(null);
+
   // Paso 2: Académico y Modalidad
-  const [curso, setCurso] = useState('UNAM'); // UNAM, COMIPEMS, IPN
+  const [curso, setCurso] = useState(paramCurso || 'UNAM'); // UNAM, COMIPEMS, IPN
   const [modalidad, setModalidad] = useState('Presencial'); // Presencial, En linea
   const [turno, setTurno] = useState('Matutino'); // Matutino, Vespertino
 
+  useEffect(() => {
+    const verifyToken = async () => {
+      if (!token) return;
+      setLoadingToken(true);
+      try {
+        const data = await fetchPublicEnlace(token);
+        setEnlaceData(data);
+        setCurso(data.curso);
+        setTokenError(null);
+      } catch (error: any) {
+        console.error('Error al verificar token:', error);
+        setTokenError(error.response?.data?.msg || 'El enlace de invitación no es válido, ha expirado o se encuentra inactivo.');
+      } finally {
+        setLoadingToken(false);
+      }
+    };
+    verifyToken();
+  }, [token, fetchPublicEnlace]);
+
   // Paso 3: Documentos (PDF)
-  const [docs, setDocs] = useState<{
-    acta: { file: File | null; progress: number; status: 'Faltante' | 'Subiendo' | 'Subido'; error?: string };
-    curp: { file: File | null; progress: number; status: 'Faltante' | 'Subiendo' | 'Subido'; error?: string };
-    domicilio: { file: File | null; progress: number; status: 'Faltante' | 'Subiendo' | 'Subido'; error?: string };
-    certificado: { file: File | null; progress: number; status: 'Faltante' | 'Subiendo' | 'Subido'; error?: string };
-  }>({
-    acta: { file: null, progress: 0, status: 'Faltante' },
-    curp: { file: null, progress: 0, status: 'Faltante' },
-    domicilio: { file: null, progress: 0, status: 'Faltante' },
-    certificado: { file: null, progress: 0, status: 'Faltante' },
-  });
+  const requiredDocs = useMemo<string[]>(() => {
+    if (enlaceData?.documentosRequeridos && enlaceData.documentosRequeridos.length > 0) {
+      return enlaceData.documentosRequeridos;
+    }
+    // Fallback default docs
+    return ['Acta de Nacimiento', 'CURP', 'Foto', 'Comprobante de Domicilio'];
+  }, [enlaceData]);
+
+  const [docs, setDocs] = useState<Record<string, { file: File | null; progress: number; status: 'Faltante' | 'Subiendo' | 'Subido'; error?: string }>>({});
+
+  useEffect(() => {
+    const initialDocs: Record<string, { file: File | null; progress: number; status: 'Faltante' | 'Subiendo' | 'Subido'; error?: string }> = {};
+    requiredDocs.forEach((docName) => {
+      initialDocs[docName] = { file: null, progress: 0, status: 'Faltante' };
+    });
+    setDocs(initialDocs);
+  }, [requiredDocs]);
 
   // Paso 4: Finanzas
   const [tipoPago, setTipoPago] = useState<'Contado' | 'Pagos'>('Contado');
@@ -93,12 +141,32 @@ export default function InscripcionPage() {
     IPN: { name: 'Curso Ingreso IPN (Superior)', duracion: 3, costoBase: 5000, mensualidadSugerida: 2000 },
   };
 
-  const selectedConfig = cursosConfig[curso];
-  // El costo total a pagos incluye un 20% de financiamiento
-  const costoTotal = tipoPago === 'Contado' ? selectedConfig.costoBase : selectedConfig.costoBase * 1.2;
-  const mensualidadesDiferidas = selectedConfig.duracion;
+  const selectedConfig = cursosConfig[curso] || cursosConfig.UNAM;
+  const isCustomPricingActive = !!(enlaceData || paramContado || paramPagos || paramPlazos || paramInscripcion);
+  const costoInscripcionOverride = enlaceData 
+    ? enlaceData.costoInscripcion 
+    : (paramInscripcion ? parseFloat(paramInscripcion) : 0.0);
+
+  // El costo total y plazos adaptados
+  const costoTotal = tipoPago === 'Contado' 
+    ? (enlaceData ? enlaceData.costoContado : (paramContado ? parseFloat(paramContado) : selectedConfig.costoBase)) 
+    : (enlaceData ? enlaceData.costoPagos : (paramPagos ? parseFloat(paramPagos) : selectedConfig.costoBase * 1.2));
+
+  const mensualidadesDiferidas = tipoPago === 'Contado' 
+    ? 1 
+    : (enlaceData ? enlaceData.planPagosTotales : (paramPlazos ? parseInt(paramPlazos) : selectedConfig.duracion));
+
   const costoMensualidad = costoTotal / mensualidadesDiferidas;
   const pagoInicial = tipoPago === 'Contado' ? costoTotal : costoMensualidad;
+
+  // Variables estáticas del plan financiado para visualización del botón (independientes del tipoPago seleccionado)
+  const plazosFinanciados = enlaceData 
+    ? enlaceData.planPagosTotales 
+    : (paramPlazos ? parseInt(paramPlazos) : selectedConfig.duracion);
+  const totalFinanciado = enlaceData 
+    ? enlaceData.costoPagos 
+    : (paramPagos ? parseFloat(paramPagos) : selectedConfig.costoBase * 1.2);
+  const costoMensualidadFinanciada = totalFinanciado / plazosFinanciados;
 
   // Validación de paso actual
   const isStepValid = () => {
@@ -134,12 +202,12 @@ export default function InscripcionPage() {
   };
 
   // --- Simulación de Carga de Documentos (Solo PDF) ---
-  const handleFileUpload = (docKey: 'acta' | 'curp' | 'domicilio' | 'certificado', file: File) => {
+  const handleFileUpload = (docName: string, file: File) => {
     // Validar extensión PDF
     if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
       setDocs(prev => ({
         ...prev,
-        [docKey]: { ...prev[docKey], error: 'Solo se permiten archivos en formato PDF (.pdf)', status: 'Faltante' }
+        [docName]: { ...prev[docName], error: 'Solo se permiten archivos en formato PDF (.pdf)', status: 'Faltante' }
       }));
       return;
     }
@@ -147,7 +215,7 @@ export default function InscripcionPage() {
     // Iniciar carga simulada
     setDocs(prev => ({
       ...prev,
-      [docKey]: { file, progress: 0, status: 'Subiendo', error: undefined }
+      [docName]: { file, progress: 0, status: 'Subiendo', error: undefined }
     }));
 
     let progress = 0;
@@ -155,14 +223,14 @@ export default function InscripcionPage() {
       progress += 25;
       setDocs(prev => ({
         ...prev,
-        [docKey]: { ...prev[docKey], progress }
+        [docName]: { ...prev[docName], progress }
       }));
 
       if (progress >= 100) {
         clearInterval(interval);
         setDocs(prev => ({
           ...prev,
-          [docKey]: { ...prev[docKey], status: 'Subido', progress: 100 }
+          [docName]: { ...prev[docName], status: 'Subido', progress: 100 }
         }));
       }
     }, 150);
@@ -241,30 +309,21 @@ export default function InscripcionPage() {
   }, [step]);
 
   // --- Guardar Alumno en Zustand ---
-  const handleFinalize = () => {
-    const nextId = students.length > 0 ? Math.max(...students.map(s => s.id)) + 1 : 1;
-    setNewStudentId(nextId);
-
+  const handleFinalize = async () => {
     const values = getValues(); // Obtener valores validados de react-hook-form
 
-    // Calcular estatus
-    const hasAllDocs = docs.acta.status === 'Subido' && 
-                       docs.curp.status === 'Subido' && 
-                       docs.domicilio.status === 'Subido' && 
-                       docs.certificado.status === 'Subido';
-    
-    const initialPay = pagoInicial;
+    // Calcular estatus dinámicamente
+    const hasAllDocs = requiredDocs.every(docName => docs[docName]?.status === 'Subido');
     
     let finalStatus = 'Pendiente Docs';
     if (hasAllDocs) {
-      finalStatus = 'Inscrito';
+      finalStatus = pagoInicial >= costoTotal ? 'Activo - Al Corriente' : 'Activo - Con Adeudos';
     }
 
     // Iniciales nombre
     const initials = values.nombre.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
 
-    const newStudent: Student = {
-      id: nextId,
+    const newStudent = {
       name: values.nombre,
       curso: `Ingreso ${curso}`,
       tutor: values.tutorNombre,
@@ -272,28 +331,157 @@ export default function InscripcionPage() {
       phone: values.tutorPhone,
       avatar: initials || 'AL',
       paymentPlan: {
-        type: tipoPago === 'Contado' ? '1 pago' : `${selectedConfig.duracion} pagos`,
+        type: tipoPago === 'Contado' ? 'Contado' : `${mensualidadesDiferidas} pagos`,
         totalCost: costoTotal,
-        amountPaid: initialPay
+        amountPaid: pagoInicial,
+        costoInscripcion: costoInscripcionOverride,
+        planPagosRealizados: tipoPago === 'Contado' ? 1 : 1, // El pago inicial cuenta como cuota 1
+        planPagosTotales: mensualidadesDiferidas
       },
-      documents: [
-        { name: 'Acta de Nacimiento', status: docs.acta.status === 'Subido' ? 'Subido' : 'Faltante' },
-        { name: 'CURP', status: docs.curp.status === 'Subido' ? 'Subido' : 'Faltante' },
-        { name: 'Comprobante de Domicilio', status: docs.domicilio.status === 'Subido' ? 'Subido' : 'Faltante' },
-        { name: 'Certificado Secundaria', status: docs.certificado.status === 'Subido' ? 'Subido' : 'Faltante' }
-      ],
-      attendance: {
-        percentage: 100,
-        history: [
-          { date: 'Fecha de Registro', status: 'Presente' }
-        ]
-      },
-      exams: []
+      documents: requiredDocs.map(docName => ({
+        name: docName,
+        status: docs[docName]?.status === 'Subido' ? 'Subido' : 'Faltante'
+      }))
     };
 
-    addStudent(newStudent);
+    if (token) {
+      await registerPublicStudent(newStudent, token);
+    } else {
+      await addStudent(newStudent);
+    }
+    
+    // Obtener el ID asignado por el backend para mostrar en el comprobante
+    setTimeout(() => {
+      const latest = useAppStore.getState().students.find(s => s.name === values.nombre);
+      if (latest) {
+        setNewStudentId(latest.id as any);
+      }
+    }, 1000);
+
     setStep(5);
   };
+
+  if (loadingToken) {
+    return (
+      <div style={{
+        width: '100%',
+        minHeight: '100vh',
+        background: 'var(--bg-main)',
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'center',
+        alignItems: 'center',
+        color: 'white',
+        fontFamily: 'Outfit, sans-serif'
+      }}>
+        <div style={{
+          background: 'rgba(255,255,255,0.03)',
+          border: '1px solid var(--border-color)',
+          borderRadius: '24px',
+          padding: '48px',
+          textAlign: 'center',
+          backdropFilter: 'blur(12px)',
+          maxWidth: '400px',
+          boxShadow: '0 20px 40px rgba(0,0,0,0.3)',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: '20px'
+        }}>
+          <div style={{
+            width: '48px',
+            height: '48px',
+            borderRadius: '50%',
+            border: '3px solid rgba(59, 130, 246, 0.1)',
+            borderTopColor: 'var(--brand-blue)',
+            animation: 'spin 1s linear infinite'
+          }} />
+          <h3 style={{ fontSize: '18px', fontWeight: '600', color: 'var(--text-primary)' }}>Verificando enlace...</h3>
+          <p style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: '1.5' }}>
+            Validando la firma comercial y los parámetros seguros de pre-inscripción en base de datos.
+          </p>
+        </div>
+        <style>{`
+          @keyframes spin {
+            to { transform: rotate(360deg); }
+          }
+        `}</style>
+      </div>
+    );
+  }
+
+  if (tokenError) {
+    return (
+      <div style={{
+        width: '100%',
+        minHeight: '100vh',
+        background: 'var(--bg-main)',
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'center',
+        alignItems: 'center',
+        color: 'white',
+        fontFamily: 'Outfit, sans-serif',
+        padding: '20px'
+      }}>
+        <div style={{
+          background: 'rgba(239, 68, 68, 0.03)',
+          border: '1px solid rgba(239, 68, 68, 0.2)',
+          borderRadius: '24px',
+          padding: '48px 32px',
+          textAlign: 'center',
+          backdropFilter: 'blur(12px)',
+          maxWidth: '480px',
+          boxShadow: '0 20px 40px rgba(0,0,0,0.4)',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: '20px'
+        }}>
+          <div style={{
+            width: '64px',
+            height: '64px',
+            borderRadius: '50%',
+            background: 'rgba(239, 68, 68, 0.1)',
+            color: '#ef4444',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            boxShadow: '0 0 20px rgba(239, 68, 68, 0.2)'
+          }}>
+            <AlertCircle size={28} />
+          </div>
+          <h3 style={{ fontSize: '22px', fontWeight: '700', color: 'var(--text-primary)' }}>Enlace de Invitación No Válido</h3>
+          <p style={{ fontSize: '14px', color: 'var(--text-secondary)', lineHeight: '1.6' }}>
+            {tokenError}
+          </p>
+          <div style={{ height: '1px', background: 'var(--border-color)', width: '100%', margin: '8px 0' }} />
+          <p style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+            Por favor, solicita a la dirección escolar un nuevo enlace seguro de inscripción con tarifas actualizadas.
+          </p>
+          <button 
+            onClick={() => navigate('/')}
+            style={{
+              marginTop: '12px',
+              background: 'rgba(255,255,255,0.05)',
+              border: '1px solid var(--border-color)',
+              borderRadius: '10px',
+              padding: '12px 24px',
+              fontSize: '14px',
+              fontWeight: '600',
+              color: 'var(--text-primary)',
+              cursor: 'pointer',
+              transition: 'var(--transition)'
+            }}
+            onMouseOver={e => e.currentTarget.style.background = 'rgba(255,255,255,0.1)'}
+            onMouseOut={e => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}
+          >
+            Volver al Inicio
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{
@@ -423,6 +611,38 @@ export default function InscripcionPage() {
                 }}>{item.label}</span>
               </div>
             ))}
+          </div>
+        )}
+
+        {/* Banner de Precios Personalizados */}
+        {step < 5 && isCustomPricingActive && (
+          <div style={{
+            background: enlaceData ? 'rgba(34, 197, 94, 0.08)' : 'rgba(59, 130, 246, 0.06)',
+            border: `1px solid ${enlaceData ? 'rgba(34, 197, 94, 0.25)' : 'rgba(59, 130, 246, 0.2)'}`,
+            borderRadius: '12px',
+            padding: '14px 20px',
+            marginBottom: '24px',
+            fontSize: '13px',
+            fontWeight: '600',
+            color: enlaceData ? '#22c55e' : 'var(--brand-blue)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px',
+            boxShadow: enlaceData ? '0 4px 12px rgba(34, 197, 94, 0.05)' : 'none'
+          }}>
+            {enlaceData ? (
+              <>
+                <ShieldCheck size={18} style={{ color: '#22c55e' }} /> 
+                <span>
+                  Enlace de Invitación Seguro Activo: Generado por <strong>{enlaceData.creadoPorUser || 'Administración'}</strong> para <strong>{enlaceData.curso}</strong>. Tarifas inalterables protegidas por base de datos.
+                </span>
+              </>
+            ) : (
+              <>
+                <Sparkles size={16} /> 
+                <span>¡Tarifa Especial Aplicada desde Enlace de Invitación! (Descuentos y mensualidades personalizadas activos)</span>
+              </>
+            )}
           </div>
         )}
 
@@ -556,62 +776,102 @@ export default function InscripcionPage() {
               
               {/* Tarjetas de Selección de Curso */}
               <div>
-                <label className="form-label" style={{ marginBottom: '12px' }}>Selecciona tu Curso *</label>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}>
-                  {[
-                    { id: 'UNAM', tag: 'Recomendado', title: 'Ingreso UNAM', duracion: '8 meses', cost: '$10,000 MXN', desc: 'Preparación integral para examen superior.' },
-                    { id: 'COMIPEMS', tag: 'Nivel Medio', title: 'COMIPEMS 2026', duracion: '8 meses', cost: '$8,000 MXN', desc: 'Ingreso a preparatoria y bachilleratos.' },
-                    { id: 'IPN', tag: 'Nivel Superior', title: 'Ingreso IPN', duracion: '3 meses', cost: '$5,000 MXN', desc: 'Repaso intensivo de ciencias duras.' },
-                  ].map(c => {
-                    const isSelected = curso === c.id;
-                    return (
-                      <div 
-                        key={c.id} 
-                        onClick={() => setCurso(c.id)}
-                        style={{
-                          background: isSelected ? 'rgba(30, 58, 138, 0.04)' : 'var(--bg-main)',
-                          border: `2px solid ${isSelected ? 'var(--brand-blue)' : 'var(--border-color)'}`,
-                          borderRadius: 'var(--radius-md)',
-                          padding: '20px',
-                          cursor: 'pointer',
-                          position: 'relative',
-                          transition: 'var(--transition)',
-                          display: 'flex',
-                          flexDirection: 'column',
-                          boxShadow: isSelected ? 'var(--shadow-sm)' : 'none'
-                        }}
-                        onMouseOver={e => {
-                          if (!isSelected) e.currentTarget.style.borderColor = 'rgba(30, 58, 138, 0.3)';
-                        }}
-                        onMouseOut={e => {
-                          if (!isSelected) e.currentTarget.style.borderColor = 'var(--border-color)';
-                        }}
-                      >
-                        {c.id === 'UNAM' && (
-                          <span style={{
-                            position: 'absolute',
-                            top: '-10px',
-                            right: '12px',
-                            background: 'var(--brand-yellow)',
-                            color: '#000',
-                            fontSize: '10px',
-                            fontWeight: '700',
-                            padding: '2px 8px',
-                            borderRadius: '100px'
-                          }}>{c.tag}</span>
-                        )}
-                        <h4 style={{ fontSize: '16px', fontWeight: '700', color: 'var(--text-primary)', margin: '0 0 4px 0' }}>{c.title}</h4>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '8px' }}>
-                          <Clock size={12} /> {c.duracion}
-                        </div>
-                        <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: '0 0 16px 0', flexGrow: 1, lineHeight: '1.4' }}>{c.desc}</p>
-                        <div style={{ fontSize: '15px', fontWeight: '700', color: isSelected ? 'var(--brand-blue)' : 'var(--text-primary)' }}>
-                          {c.cost} <span style={{ fontSize: '11px', fontWeight: 'normal', color: 'var(--text-secondary)' }}>contado</span>
+                {enlaceData ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <label className="form-label" style={{ marginBottom: '4px' }}>Curso Configurado</label>
+                    <div style={{
+                      background: 'rgba(30, 58, 138, 0.04)',
+                      border: '2px solid var(--brand-blue)',
+                      borderRadius: 'var(--radius-md)',
+                      padding: '22px 24px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      boxShadow: 'var(--shadow-sm)'
+                    }}>
+                      <div>
+                        <span style={{
+                          background: 'rgba(59, 130, 246, 0.15)',
+                          color: 'var(--brand-blue)',
+                          fontSize: '10px',
+                          fontWeight: '700',
+                          padding: '2px 8px',
+                          borderRadius: '100px',
+                          textTransform: 'uppercase',
+                          display: 'inline-block',
+                          marginBottom: '6px'
+                        }}>Asignado por Enlace Seguro</span>
+                        <h3 style={{ fontSize: '20px', fontWeight: '800', color: 'var(--text-primary)', margin: 0 }}>{enlaceData.curso}</h3>
+                        <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: '4px 0 0 0' }}>Plan de estudios oficial y asignación de costos activos.</p>
+                      </div>
+                      <div style={{ textAlign: 'right' }}>
+                        <span style={{ fontSize: '11px', color: 'var(--text-secondary)', display: 'block' }}>Costo Contado</span>
+                        <div style={{ fontSize: '22px', fontWeight: '800', color: 'var(--brand-blue)' }}>
+                          ${enlaceData.costoContado.toLocaleString()} <span style={{ fontSize: '12px', fontWeight: '600' }}>MXN</span>
                         </div>
                       </div>
-                    );
-                  })}
-                </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div>
+                    <label className="form-label" style={{ marginBottom: '12px' }}>Selecciona tu Curso *</label>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}>
+                      {[
+                        { id: 'UNAM', tag: 'Recomendado', title: 'Ingreso UNAM', duracion: '8 meses', cost: '$10,000 MXN', desc: 'Preparación integral para examen superior.' },
+                        { id: 'COMIPEMS', tag: 'Nivel Medio', title: 'COMIPEMS 2026', duracion: '8 meses', cost: '$8,000 MXN', desc: 'Ingreso a preparatoria y bachilleratos.' },
+                        { id: 'IPN', tag: 'Nivel Superior', title: 'Ingreso IPN', duracion: '3 meses', cost: '$5,000 MXN', desc: 'Repaso intensivo de ciencias duras.' },
+                      ].map(c => {
+                        const isSelected = curso === c.id;
+                        return (
+                          <div 
+                            key={c.id} 
+                            onClick={() => setCurso(c.id)}
+                            style={{
+                              background: isSelected ? 'rgba(30, 58, 138, 0.04)' : 'var(--bg-main)',
+                              border: `2px solid ${isSelected ? 'var(--brand-blue)' : 'var(--border-color)'}`,
+                              borderRadius: 'var(--radius-md)',
+                              padding: '20px',
+                              cursor: 'pointer',
+                              position: 'relative',
+                              transition: 'var(--transition)',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              boxShadow: isSelected ? 'var(--shadow-sm)' : 'none'
+                            }}
+                            onMouseOver={e => {
+                              if (!isSelected) e.currentTarget.style.borderColor = 'rgba(30, 58, 138, 0.3)';
+                            }}
+                            onMouseOut={e => {
+                              if (!isSelected) e.currentTarget.style.borderColor = 'var(--border-color)';
+                            }}
+                          >
+                            {c.id === 'UNAM' && (
+                              <span style={{
+                                position: 'absolute',
+                                top: '-10px',
+                                right: '12px',
+                                background: 'var(--brand-yellow)',
+                                color: '#000',
+                                fontSize: '10px',
+                                fontWeight: '700',
+                                padding: '2px 8px',
+                                borderRadius: '100px'
+                              }}>{c.tag}</span>
+                            )}
+                            <h4 style={{ fontSize: '16px', fontWeight: '700', color: 'var(--text-primary)', margin: '0 0 4px 0' }}>{c.title}</h4>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '8px' }}>
+                              <Clock size={12} /> {c.duracion}
+                            </div>
+                            <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: '0 0 16px 0', flexGrow: 1, lineHeight: '1.4' }}>{c.desc}</p>
+                            <div style={{ fontSize: '15px', fontWeight: '700', color: isSelected ? 'var(--brand-blue)' : 'var(--text-primary)' }}>
+                              {c.cost} <span style={{ fontSize: '11px', fontWeight: 'normal', color: 'var(--text-secondary)' }}>contado</span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Selector de Modalidad y Turno */}
@@ -711,16 +971,12 @@ export default function InscripcionPage() {
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
-              {[
-                { key: 'acta' as const, name: 'Acta de Nacimiento', desc: 'Copia certificada legible.' },
-                { key: 'curp' as const, name: 'CURP', desc: 'Descarga reciente del portal Segob.' },
-                { key: 'domicilio' as const, name: 'Comprobante de Domicilio', desc: 'Recibo de luz, agua o teléfono.' },
-                { key: 'certificado' as const, name: 'Certificado de Estudios', desc: 'Secundaria o Bachillerato.' },
-              ].map(docItem => {
-                const itemData = docs[docItem.key];
+              {requiredDocs.map(docName => {
+                const itemData = docs[docName] || { file: null, progress: 0, status: 'Faltante' };
+                const desc = DOCS_CONFIG[docName]?.desc || 'Documento oficial requerido.';
                 return (
                   <div 
-                    key={docItem.key}
+                    key={docName}
                     style={{
                       border: `2px dashed ${itemData.status === 'Subido' ? '#16a34a' : itemData.error ? '#ef4444' : 'var(--border-color)'}`,
                       borderRadius: 'var(--radius-md)',
@@ -740,8 +996,8 @@ export default function InscripcionPage() {
                       <UploadCloud size={32} color="var(--brand-blue)" style={{ marginBottom: '12px' }} />
                     )}
 
-                    <h4 style={{ fontSize: '14px', fontWeight: '600', color: 'var(--text-primary)', margin: '0 0 4px 0' }}>{docItem.name}</h4>
-                    <p style={{ fontSize: '11px', color: 'var(--text-secondary)', margin: '0 0 16px 0' }}>{docItem.desc}</p>
+                    <h4 style={{ fontSize: '14px', fontWeight: '600', color: 'var(--text-primary)', margin: '0 0 4px 0' }}>{docName}</h4>
+                    <p style={{ fontSize: '11px', color: 'var(--text-secondary)', margin: '0 0 16px 0' }}>{desc}</p>
 
                     {itemData.status === 'Faltante' && (
                       <label style={{
@@ -763,7 +1019,7 @@ export default function InscripcionPage() {
                           style={{ display: 'none' }}
                           onChange={e => {
                             if (e.target.files && e.target.files[0]) {
-                              handleFileUpload(docItem.key, e.target.files[0]);
+                              handleFileUpload(docName, e.target.files[0]);
                             }
                           }}
                         />
@@ -872,10 +1128,10 @@ export default function InscripcionPage() {
                         </div>
                       </div>
                       <div style={{ fontSize: '18px', fontWeight: '700', color: tipoPago === 'Contado' ? '#16a34a' : 'var(--text-primary)' }}>
-                        ${selectedConfig.costoBase.toLocaleString()} <span style={{ fontSize: '11px', fontWeight: 'normal', color: 'var(--text-secondary)' }}>MXN</span>
+                        ${(enlaceData ? enlaceData.costoContado : (paramContado ? parseFloat(paramContado) : selectedConfig.costoBase)).toLocaleString()} <span style={{ fontSize: '11px', fontWeight: 'normal', color: 'var(--text-secondary)' }}>MXN</span>
                       </div>
                     </button>
-
+ 
                     {/* Tarjeta Opción 2: Pago a Plazos */}
                     <button
                       type="button"
@@ -911,21 +1167,21 @@ export default function InscripcionPage() {
                         <div>
                           <strong style={{ fontSize: '15px', color: 'var(--text-primary)', display: 'block' }}>Financiado en Mensualidades</strong>
                           <span style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px', display: 'block' }}>
-                            Págalo en {mensualidadesDiferidas} cómodos pagos de ${Math.round(costoMensualidad).toLocaleString()} MXN.
+                            Págalo en {plazosFinanciados} cómodos pagos de ${Math.round(costoMensualidadFinanciada).toLocaleString()} MXN.
                           </span>
                         </div>
                       </div>
                       <div style={{ fontSize: '18px', fontWeight: '700', color: 'var(--text-primary)' }}>
-                        ${(selectedConfig.costoBase * 1.2).toLocaleString()} <span style={{ fontSize: '11px', fontWeight: 'normal', color: 'var(--text-secondary)' }}>MXN</span>
+                        ${(enlaceData ? enlaceData.costoPagos : (paramPagos ? parseFloat(paramPagos) : selectedConfig.costoBase * 1.2)).toLocaleString()} <span style={{ fontSize: '11px', fontWeight: 'normal', color: 'var(--text-secondary)' }}>MXN</span>
                       </div>
                     </button>
-
+ 
                   </div>
                 </div>
-
-
+ 
+ 
               </div>
-
+ 
               {/* Resumen Comercial Derecha */}
               <div style={{
                 background: 'var(--bg-main)',
@@ -939,30 +1195,27 @@ export default function InscripcionPage() {
                 <h3 style={{ fontSize: '15px', fontWeight: '700', color: 'var(--text-primary)', margin: 0, borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
                   Resumen Comercial
                 </h3>
-
+ 
                 <div style={{ display: 'grid', gridTemplateColumns: '130px 1fr', gap: '14px 16px', fontSize: '13px', alignItems: 'center' }}>
                   <span style={{ color: 'var(--text-secondary)' }}>Curso Seleccionado</span>
                   <span style={{ fontWeight: '600', color: 'var(--text-primary)', textAlign: 'right' }}>{selectedConfig.name}</span>
-
+ 
                   <span style={{ color: 'var(--text-secondary)' }}>Duración Escolar</span>
                   <span style={{ fontWeight: '600', color: 'var(--text-primary)', textAlign: 'right' }}>{selectedConfig.duracion} meses</span>
-
+ 
                   <span style={{ color: 'var(--text-secondary)' }}>Modalidad y Turno</span>
                   <span style={{ fontWeight: '600', color: 'var(--text-primary)', textAlign: 'right' }}>{modalidad} / {turno}</span>
                   
                   <div style={{ gridColumn: 'span 2', height: '1px', background: 'var(--border-color)', margin: '4px 0' }} />
-
-                  <span style={{ color: 'var(--text-secondary)' }}>Costo Base Contado</span>
-                  <span style={{ fontSize: '14px', fontWeight: '600', color: 'var(--text-primary)', textAlign: 'right' }}>${selectedConfig.costoBase.toLocaleString()} MXN</span>
-
-                  {tipoPago === 'Pagos' ? (
+ 
+                  {enlaceData ? (
                     <>
-                      <span style={{ color: 'var(--text-secondary)' }}>Financiamiento Plazos (20%)</span>
-                      <span style={{ fontSize: '14px', fontWeight: '600', color: '#ef4444', textAlign: 'right' }}>+${(selectedConfig.costoBase * 0.2).toLocaleString()} MXN</span>
-                    </>
-                  ) : (
-                    <>
-                      <span style={{ color: '#16a34a', fontWeight: '600' }}>Descuento Contado</span>
+                      <span style={{ color: 'var(--text-secondary)' }}>Precio Base Oficial</span>
+                      <span style={{ fontSize: '14px', fontWeight: '600', color: 'var(--text-primary)', textAlign: 'right', textDecoration: 'line-through' }}>
+                        ${selectedConfig.costoBase.toLocaleString()} MXN
+                      </span>
+ 
+                      <span style={{ color: '#16a34a', fontWeight: '600' }}>Descuento Especial (Enlace)</span>
                       <span style={{
                         fontSize: '12px', 
                         color: '#16a34a',
@@ -972,10 +1225,38 @@ export default function InscripcionPage() {
                         fontWeight: '600',
                         textAlign: 'right',
                         justifySelf: 'end'
-                      }}>-${(selectedConfig.costoBase * 0.2).toLocaleString()} MXN</span>
+                      }}>
+                        Activo 🔒
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <span style={{ color: 'var(--text-secondary)' }}>Costo Base Contado</span>
+                      <span style={{ fontSize: '14px', fontWeight: '600', color: 'var(--text-primary)', textAlign: 'right' }}>${selectedConfig.costoBase.toLocaleString()} MXN</span>
+ 
+                      {tipoPago === 'Pagos' ? (
+                        <>
+                          <span style={{ color: 'var(--text-secondary)' }}>Financiamiento Plazos (20%)</span>
+                          <span style={{ fontSize: '14px', fontWeight: '600', color: '#ef4444', textAlign: 'right' }}>+${(selectedConfig.costoBase * 0.2).toLocaleString()} MXN</span>
+                        </>
+                      ) : (
+                        <>
+                          <span style={{ color: '#16a34a', fontWeight: '600' }}>Descuento Contado</span>
+                          <span style={{
+                            fontSize: '12px', 
+                            color: '#16a34a',
+                            background: 'rgba(34, 197, 94, 0.1)',
+                            padding: '4px 10px',
+                            borderRadius: '6px',
+                            fontWeight: '600',
+                            textAlign: 'right',
+                            justifySelf: 'end'
+                          }}>-${(selectedConfig.costoBase * 0.2).toLocaleString()} MXN</span>
+                        </>
+                      )}
                     </>
                   )}
-
+ 
                   <span style={{ color: 'var(--text-secondary)' }}>Total Neto del Plan</span>
                   <span style={{ fontSize: '16px', fontWeight: '700', color: 'var(--text-primary)', textAlign: 'right' }}>${costoTotal.toLocaleString()} MXN</span>
 
@@ -999,9 +1280,9 @@ export default function InscripcionPage() {
                 }}>
                   <Award size={14} color="var(--brand-yellow)" /> Estatus de Expediente: 
                   <strong style={{
-                    color: docs.acta.status === 'Subido' && docs.curp.status === 'Subido' && docs.domicilio.status === 'Subido' && docs.certificado.status === 'Subido' ? '#16a34a' : '#ca8a04'
+                    color: requiredDocs.every(docName => docs[docName]?.status === 'Subido') ? '#16a34a' : '#ca8a04'
                   }}>
-                    {docs.acta.status === 'Subido' && docs.curp.status === 'Subido' && docs.domicilio.status === 'Subido' && docs.certificado.status === 'Subido' ? 'Inscrito' : 'Pendiente Docs'}
+                    {requiredDocs.every(docName => docs[docName]?.status === 'Subido') ? 'Inscrito' : 'Pendiente Docs'}
                   </strong>
                 </div>
 
@@ -1096,14 +1377,14 @@ export default function InscripcionPage() {
                 <span style={{
                   fontSize: '11px',
                   fontWeight: '700',
-                  color: '#10b981',
-                  background: 'rgba(16, 185, 129, 0.2)',
-                  border: '1px solid rgba(16, 185, 129, 0.3)',
+                  color: requiredDocs.every(docName => docs[docName]?.status === 'Subido') ? '#10b981' : '#ca8a04',
+                  background: requiredDocs.every(docName => docs[docName]?.status === 'Subido') ? 'rgba(16, 185, 129, 0.2)' : 'rgba(202, 138, 4, 0.2)',
+                  border: requiredDocs.every(docName => docs[docName]?.status === 'Subido') ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid rgba(202, 138, 4, 0.3)',
                   padding: '4px 12px',
                   borderRadius: '100px',
                   textTransform: 'uppercase'
                 }}>
-                  {docs.acta.status === 'Subido' && docs.curp.status === 'Subido' && docs.domicilio.status === 'Subido' && docs.certificado.status === 'Subido' ? 'Inscrito' : 'Pendiente Docs'}
+                  {requiredDocs.every(docName => docs[docName]?.status === 'Subido') ? 'Inscrito' : 'Pendiente Docs'}
                 </span>
               </div>
 

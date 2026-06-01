@@ -1,0 +1,1441 @@
+[
+  {
+    "subject": "Matemáticas",
+    "question": "¿Cuál es el resultado de -2 + (3)(4) - (-5) 8?",
+    "options": {
+      "A": "68",
+      "B": "50",
+      "C": "46",
+      "D": "36"
+    },
+    "correct": "B",
+    "explanation": "Justificación didáctica no disponible."
+  },
+  {
+    "subject": "Matemáticas",
+    "question": "¿Cuál es la unidad de la frecuencia de una onda en el sistema internacional de unidades?",
+    "options": {
+      "A": "Segundo",
+      "B": "Metro",
+      "C": "Metro/segundo",
+      "D": "Hertz"
+    },
+    "correct": "D",
+    "explanation": "Justificación didáctica no disponible."
+  },
+  {
+    "subject": "Matemáticas",
+    "question": "¿Cuáles de las siguientes afirmaciones corresponden a la presión atmosférica?  I. Es igual en todos los puntos de la superficie terrestre II. Es mayor en lo alto de las montañas (aumenta con la altura respecto al nivel del mar)  III. Es mayor a nivel del",
+    "options": {
+      "A": "I y IV",
+      "B": "II y IV",
+      "C": "II y V",
+      "D": "III y V"
+    },
+    "correct": "D",
+    "explanation": "Justificación didáctica no disponible."
+  },
+  {
+    "subject": "Matemáticas",
+    "question": "¿Qué sucede cuando se hace circular una corriente por un conducto?",
+    "options": {
+      "A": "La energía cinética de los electrones aumenta si la resistencia del conductor es grande",
+      "B": "Los protones en movimiento crean una corriente a través del conductor",
+      "C": "La corriente que circula por el conductor será inversamente proporcional al voltaje",
+      "D": "Se presenta un campo magnético en el espacio que rodea al conductor"
+    },
+    "correct": "D",
+    "explanation": "Justificación didáctica no disponible."
+  },
+  {
+    "subject": "Física",
+    "question": "A la razón de dividir la fuerza entre el área se le conoce como",
+    "options": {
+      "A": "Presión",
+      "B": "Densidad",
+      "C": "Impulso",
+      "D": "Volumen"
+    },
+    "correct": "A",
+    "explanation": "Justificación didáctica no disponible."
+  },
+  {
+    "subject": "Matemáticas",
+    "question": "Al resolver el sistema  {5x + 3y= 5 {4x + 7y= 27 el valor de y es igual a",
+    "options": {
+      "A": "-5",
+      "B": "-2",
+      "C": "0",
+      "D": "5"
+    },
+    "correct": "D",
+    "explanation": "Justificación didáctica no disponible."
+  },
+  {
+    "subject": "Matemáticas",
+    "question": "Al valerse de mentiras y engaños  para enriquecerse, el ciudadano K mostró que sus valores",
+    "options": {
+      "A": "Son ilegales",
+      "B": "No son ilegales",
+      "C": "No son éticos",
+      "D": "Son éticos"
+    },
+    "correct": "C",
+    "explanation": "Los actos ilegales son aquellos que no están permitidos por la ley."
+  },
+  {
+    "subject": "Biología",
+    "question": "Biología  1.2",
+    "options": {
+      "A": "Mutación",
+      "B": "Adaptación",
+      "C": "Variación",
+      "D": "Selección"
+    },
+    "correct": "D",
+    "explanation": "Justificación didáctica no disponible."
+  },
+  {
+    "subject": "Biología",
+    "question": "Biología 1,5",
+    "options": {
+      "A": "Genera oxígeno y glucosa",
+      "B": "Genera dióxido de carbono y glucosa",
+      "C": "Sólo produce glucosa",
+      "D": "Produce dióxido de carbono y sales minerales"
+    },
+    "correct": "A",
+    "explanation": "Te invitamos a estudiar el siguiente vídeo:\nhttps://youtu.be/ru6rZNQg3eM"
+  },
+  {
+    "subject": "Biología",
+    "question": "Biología 1,8",
+    "options": {
+      "A": "I, II y II",
+      "B": "I, II y VI",
+      "C": "II, III y IV",
+      "D": "II, IV y V"
+    },
+    "correct": "B",
+    "explanation": "Justificación didáctica no disponible."
+  },
+  {
+    "subject": "Biología",
+    "question": "Biología 1.1",
+    "options": {
+      "A": "Alimentación",
+      "B": "Homeostasis",
+      "C": "Irritabilidad",
+      "D": "Reproducción"
+    },
+    "correct": "C",
+    "explanation": "Justificación didáctica no disponible."
+  },
+  {
+    "subject": "Biología",
+    "question": "Biología 1.10",
+    "options": {
+      "A": "Preservativo o condón",
+      "B": "Diafragma",
+      "C": "Vasectomía",
+      "D": "Dispositivo intrauterino (DIU)"
+    },
+    "correct": "C",
+    "explanation": "Justificación didáctica no disponible."
+  },
+  {
+    "subject": "Biología",
+    "question": "Biología 1.11",
+    "options": {
+      "A": "75 % Blanco y 25 % rojo",
+      "B": "75% Rojo 25% blanco",
+      "C": "100% Rosa",
+      "D": "100% Rojo con manchas blancas"
+    },
+    "correct": "B",
+    "explanation": "Justificación didáctica no disponible."
+  },
+  {
+    "subject": "Biología",
+    "question": "Biología 1.12",
+    "options": {
+      "A": "Desoxirribonucleico",
+      "B": "Ribonucleico",
+      "C": "Linoleico",
+      "D": "Etanóico"
+    },
+    "correct": "A",
+    "explanation": "Justificación didáctica no disponible."
+  },
+  {
+    "subject": "Biología",
+    "question": "Biología 1.3",
+    "options": {
+      "A": "Empírico",
+      "B": "Científico",
+      "C": "Experimental",
+      "D": "Dinámico"
+    },
+    "correct": "A",
+    "explanation": "Justificación didáctica no disponible."
+  },
+  {
+    "subject": "Biología",
+    "question": "Biología 1.4",
+    "options": {
+      "A": "El proceso de germinación de una semilla",
+      "B": "Cómo se realiza la migración de las aves",
+      "C": "La cantidad de protozoarios en un cultivo",
+      "D": "Que el té de manzanilla ayuda a remediar el dolor de estómago"
+    },
+    "correct": "D",
+    "explanation": "Justificación didáctica no disponible."
+  },
+  {
+    "subject": "Biología",
+    "question": "Biología 1.6",
+    "options": {
+      "A": "Heterótrofos",
+      "B": "Hongos",
+      "C": "Autótrofos",
+      "D": "Eucariontes"
+    },
+    "correct": "C",
+    "explanation": "Justificación didáctica no disponible."
+  },
+  {
+    "subject": "Biología",
+    "question": "Biología 1.7",
+    "options": {
+      "A": "Fructuosa y sacarosa",
+      "B": "Amilasa y ATPasa",
+      "C": "Hemoglobina y albúmina",
+      "D": "Glicerol y triglicéridos"
+    },
+    "correct": "A",
+    "explanation": "Justificación didáctica no disponible."
+  },
+  {
+    "subject": "Biología",
+    "question": "Biología 1.9",
+    "options": {
+      "A": "El ciclo menstrual y vello axilar",
+      "B": "Aumento en la musculatura y ensanchamiento de la cadera",
+      "C": "Los aparatos reproductores masculino y femenino",
+      "D": "Ensanchamiento de hombros y cadera"
+    },
+    "correct": "C",
+    "explanation": "Justificación didáctica no disponible."
+  },
+  {
+    "subject": "Matemáticas",
+    "question": "Cuando caminas sobre una alfombra y traes puestos tenis y ropa de nylon adquieres carga eléctrica principalmente por",
+    "options": {
+      "A": "Conducción",
+      "B": "Inducción",
+      "C": "Radiación",
+      "D": "Frotamiento"
+    },
+    "correct": "D",
+    "explanation": "Justificación didáctica no disponible."
+  },
+  {
+    "subject": "Matemáticas",
+    "question": "Cuando se hace incidir un rayo de luz en un espejo plano, el ángulo de incidencia es",
+    "options": {
+      "A": "Mayor al ángulo de reflexión",
+      "B": "Menor al ángulo de reflexión",
+      "C": "El doble del ángulo de reflexión",
+      "D": "Igual al ángulo de reflexión"
+    },
+    "correct": "D",
+    "explanation": "Justificación didáctica no disponible."
+  },
+  {
+    "subject": "Matemáticas",
+    "question": "El Ayuntamiento es nombrado o electo por",
+    "options": {
+      "A": "Los partidos políticos",
+      "B": "El Congreso de la Unión",
+      "C": "El Presidente de la República",
+      "D": "Los ciudadanos que habitan en el municipio"
+    },
+    "correct": "D",
+    "explanation": "El INE determina los requisitos para el registro de los\npartidos políticos, las formas de su intervención en los procesos electorales y\nlos derechos, obligaciones que les corresponden. Los partidos políticos de México tienen derecho a obtener financiamiento, tanto público como privado, utilizar los medios de comunicación públicos y constituir coaliciones o agrupaciones electorales."
+  },
+  {
+    "subject": "Física",
+    "question": "El ciudadano K al amasar su fortuna explotando los recursos de su comunidad actuó",
+    "options": {
+      "A": "Ejerciendo los derechos que él tenía",
+      "B": "Ignorando los derechos que él tenía",
+      "C": "Ejerciendo las obligaciones que él tenía",
+      "D": "Ignorando las obligaciones que él tenía"
+    },
+    "correct": "D",
+    "explanation": "En el Artículo 4o. Constitucional, se encuentra inscrito: \"Toda persona tiene derecho a un medio ambiente sano para su desarrollo y bienestar. El Estado garantizará el respeto a este derecho. El daño y deterioro ambiental generará responsabilidad para quien lo provoque en términos de lo dispuesto por la ley\"."
+  },
+  {
+    "subject": "Español",
+    "question": "En el texto se llama a los cóndores milenarias carroñeras porque",
+    "options": {
+      "A": "Viven muchos años",
+      "B": "Son aves típicas de Sudamérica",
+      "C": "Son impresionantes",
+      "D": "Existen desde hace mucho tiempo"
+    },
+    "correct": "D",
+    "explanation": "Justificación didáctica no disponible."
+  },
+  {
+    "subject": "Matemáticas",
+    "question": "En la frase Una píldora azul que puede convertirse en verde.  El autor se refiere a:",
+    "options": {
+      "A": "La descomposición de un color primario en secundario",
+      "B": "Las propiedades químicas de la píldora",
+      "C": "Lo novedoso de la píldora",
+      "D": "El posible aporte de la píldora a la biodiversidad"
+    },
+    "correct": "D",
+    "explanation": "Justificación didáctica no disponible."
+  },
+  {
+    "subject": "Matemáticas",
+    "question": "En la oración:  El diez de mayo todos los mexicanos rinden homenaje a las madres.  ¿Cuál es el sujeto?",
+    "options": {
+      "A": "rinden homenaje",
+      "B": "el diez de mayo",
+      "C": "todos los mexicanos"
+    },
+    "correct": "C",
+    "explanation": "Justificación didáctica no disponible."
+  },
+  {
+    "subject": "Matemáticas",
+    "question": "En mecànica, ¿Cuál de las siguientes formas de energía corresponde a energía almacenada?",
+    "options": {
+      "A": "Potencial",
+      "B": "Térmica",
+      "C": "Cinètica",
+      "D": "Trabajo"
+    },
+    "correct": "A",
+    "explanation": "Justificación didáctica no disponible."
+  },
+  {
+    "subject": "Matemáticas",
+    "question": "En un grupo de 50 alumnos, el 30% aprobó el examen de matemáticas, ¿cuántos alumnos reprobaron el examen?",
+    "options": {
+      "A": "15",
+      "B": "20",
+      "C": "25",
+      "D": "35"
+    },
+    "correct": "D",
+    "explanation": "Justificación didáctica no disponible."
+  },
+  {
+    "subject": "Matemáticas",
+    "question": "En un grupo de 50 alumnos, el 30% aprobó el examen de matemáticas, ¿cuántos alumnos reprobaron el examen?",
+    "options": {
+      "A": "15",
+      "B": "20",
+      "C": "25",
+      "D": "35"
+    },
+    "correct": "D",
+    "explanation": "Justificación didáctica no disponible."
+  },
+  {
+    "subject": "Matemáticas",
+    "question": "En un triángulo la hipotenusa mide a unidades y los catetos miden b y c respectivamente. si b igual a c, entonces sus ángulos agudos miden cada uno.",
+    "options": {
+      "A": "30° y 60°",
+      "B": "35° y 55°",
+      "C": "45° y 45°",
+      "D": "40° y 50°"
+    },
+    "correct": "C",
+    "explanation": "Justificación didáctica no disponible."
+  },
+  {
+    "subject": "Matemáticas",
+    "question": "En un triángulo rectángulo el sen a = 3/5, la tan a es igual a",
+    "options": {
+      "A": "5/3",
+      "B": "4/3",
+      "C": "3/4",
+      "D": "5/4"
+    },
+    "correct": "C",
+    "explanation": "Justificación didáctica no disponible."
+  },
+  {
+    "subject": "Matemáticas",
+    "question": "En una urna se encuentran 8 bolas de tamaño idéntico pero de diferente color: rojo, azul, verde, blanco, negro, gris, amarillo y café. La probabilidad de sacar de la urna una bola roja es",
+    "options": {
+      "A": "1",
+      "B": "1/4",
+      "C": "1/8",
+      "D": "1/16"
+    },
+    "correct": "C",
+    "explanation": "Justificación didáctica no disponible."
+  },
+  {
+    "subject": "Matemáticas",
+    "question": "Es la colaboración de todos, la suma de esfuerzos que permite lograr los objetivos propuestos:",
+    "options": {
+      "A": "Tolerancia",
+      "B": "Responsabilidad",
+      "C": "Respeto",
+      "D": "Cooperación"
+    },
+    "correct": "D",
+    "explanation": "La tolerancia es el valor que concede dignidad, libertad y diversidad en una sociedad, asumiendo que todos somos diferentes. La tolerancia significa que abrazamos opiniones, estilos de vida y creencias diferentes a las nuestras para relacionarnos como seres humanos."
+  },
+  {
+    "subject": "Matemáticas",
+    "question": "Es un límite a la libertad de imprenta",
+    "options": {
+      "A": "Apoyar a gobierno",
+      "B": "Escribir con responsabilidad",
+      "C": "Manejar buena redacción",
+      "D": "Respeto a la vida privada"
+    },
+    "correct": "D",
+    "explanation": "Hay que ser imparciales con la libertad de imprenta y críticos para poder mantenerse objetivo sobre la libertad de imprenta."
+  },
+  {
+    "subject": "Matemáticas",
+    "question": "Escoge la opción que más se acerca a la IDEA OPUESTA del significado de la palabra en mayúsculas   El tejón es un mamífero carnicero CORRIENTE en Europa",
+    "options": {
+      "A": "Extraordinario",
+      "B": "Común",
+      "C": "Rechazado",
+      "D": "Desconocido"
+    },
+    "correct": "A",
+    "explanation": "Lo contrario a la palabra \"corriente\" es \"extraordinario\" de acuerdo al contexto de la oración."
+  },
+  {
+    "subject": "Geografía",
+    "question": "Escoge la opción que más se acerca a la IDEA OPUESTA del significado de la palabra en mayúsculas   En algunos países se concentra la mayor parte de la DIVERSIDAD biológica del planeta",
+    "options": {
+      "A": "Multiplicidad",
+      "B": "Pluralidad",
+      "C": "Variedad",
+      "D": "Homogeneidad"
+    },
+    "correct": "D",
+    "explanation": "La palabra \"multiplicidad\" significa variedad, la cual no corresponde como una palabra opuesta a la que nos indica la pregunta."
+  },
+  {
+    "subject": "Matemáticas",
+    "question": "Español 1.1",
+    "options": {
+      "A": "Dar testimonio del referente de donde se obtuvo la información",
+      "B": "Localizar y conservar información",
+      "C": "Tener registrado el libro de donde se tomaron los datos",
+      "D": "Mostrar los datos del libro que se consultó"
+    },
+    "correct": "B",
+    "explanation": "Justificación didáctica no disponible."
+  },
+  {
+    "subject": "Matemáticas",
+    "question": "Español 1.10",
+    "options": {
+      "A": "Pretérito de indicativo",
+      "B": "Pretérito de subjuntivo",
+      "C": "Copretérito de indicativo",
+      "D": "Pospretérito de indicativo"
+    },
+    "correct": "D",
+    "explanation": "Justificación didáctica no disponible."
+  },
+  {
+    "subject": "Matemáticas",
+    "question": "Español 1.11",
+    "options": {
+      "A": "Unos tras otros fueron llegando los demás artistas",
+      "B": "La humanidad viste otra vez sus galas nupciales",
+      "C": "Para él no había pintor más grande que El Greco",
+      "D": "El hombre que no espera nada se convierte en un autómata"
+    },
+    "correct": "C",
+    "explanation": "Justificación didáctica no disponible."
+  },
+  {
+    "subject": "Matemáticas",
+    "question": "Español 1.12",
+    "options": {
+      "A": "Poética",
+      "B": "Referencial",
+      "C": "Fática",
+      "D": "Emotiva"
+    },
+    "correct": "B",
+    "explanation": "Justificación didáctica no disponible."
+  },
+  {
+    "subject": "Matemáticas",
+    "question": "Español 1.2",
+    "options": {
+      "A": "Subrayado",
+      "B": "Negritas",
+      "C": "Mayúsculas",
+      "D": "Itálicas"
+    },
+    "correct": "D",
+    "explanation": "Justificación didáctica no disponible."
+  },
+  {
+    "subject": "Matemáticas",
+    "question": "Español 1.3",
+    "options": {
+      "A": "La evolución y los adultos",
+      "B": "La tecnología y la evolución",
+      "C": "La nueva generación y los adultos",
+      "D": "El deficit de atención y la tecnología"
+    },
+    "correct": "B",
+    "explanation": "Justificación didáctica no disponible."
+  },
+  {
+    "subject": "Matemáticas",
+    "question": "Español 1.4",
+    "options": {
+      "A": "Introducción: I\nDesarrollo: II - VII\nConclusión: VIII",
+      "B": "Introducción: II\nDesarrollo: III - VIII\nConclusión: I",
+      "C": "Introducción: I - II\nDesarrollo: III - VII\nConclusión: VIII",
+      "D": "Introducción: I- III\nDesarrollo: IV\nConclusión: V"
+    },
+    "correct": "A",
+    "explanation": "Justificación didáctica no disponible."
+  },
+  {
+    "subject": "Matemáticas",
+    "question": "Español 1.5",
+    "options": {
+      "A": "Legal - convencernos de usar internet",
+      "B": "Publicitario - describir lo que hace la tecnología",
+      "C": "Informativo - dar a conocer lo que encontró el neurólogo",
+      "D": "Administrativo - narrar lo que aconteció hace días"
+    },
+    "correct": "C",
+    "explanation": "Justificación didáctica no disponible."
+  },
+  {
+    "subject": "Matemáticas",
+    "question": "Español 1.6",
+    "options": {
+      "A": "rinden homenaje",
+      "B": "el diez de mayo",
+      "C": "todos los mexicanos",
+      "D": "Las madres"
+    },
+    "correct": "C",
+    "explanation": "Justificación didáctica no disponible."
+  },
+  {
+    "subject": "Matemáticas",
+    "question": "Español 1.7",
+    "options": {
+      "A": "el presidente",
+      "B": "el edificio",
+      "C": "el día",
+      "D": "ayer"
+    },
+    "correct": "B",
+    "explanation": "Justificación didáctica no disponible."
+  },
+  {
+    "subject": "Matemáticas",
+    "question": "Español 1.8",
+    "options": {
+      "A": "I y III",
+      "B": "I y IV",
+      "C": "II y IV",
+      "D": "III y V"
+    },
+    "correct": "C",
+    "explanation": "Justificación didáctica no disponible."
+  },
+  {
+    "subject": "Matemáticas",
+    "question": "Español 1.9",
+    "options": {
+      "A": "Punto y aparte",
+      "B": "Punto final",
+      "C": "Punto y coma",
+      "D": "Dos puntos"
+    },
+    "correct": "D",
+    "explanation": "Justificación didáctica no disponible."
+  },
+  {
+    "subject": "Física",
+    "question": "Física 1",
+    "options": {
+      "A": "La aceleración que experimentó el móvil es 50 m/s2",
+      "B": "El móvil mantuvo constante su posición",
+      "C": "La velocidad del móvil fue de 100 m/s después de 20 segundos",
+      "D": "El móvil mantuvo constante su velocidad"
+    },
+    "correct": "D",
+    "explanation": "La gráfica representa movimiento rectilíneo"
+  },
+  {
+    "subject": "Física",
+    "question": "Física 2",
+    "options": {
+      "A": "I:a, c - II:b, d",
+      "B": "I:a, d - II:b, c",
+      "C": "I:c, d - II:a, b",
+      "D": "I:b, d - II:a, c"
+    },
+    "correct": "C",
+    "explanation": "Recuerda debido a que movimiento rectilíneo el móvil se desplaza o mueve distancias iguales en tiempos iguales veremos gráficas con líneas rectas inclinadas cuando se gráfica distancia (eje de las y) contra tiempo (eje de las x)\nEn el movimiento uniformemente acelerado se observan curvas hacia arriba (cuando acelera) o hacia abajo (cuando desacelera) cuando las gráficas son distancia contra tiempo"
+  },
+  {
+    "subject": "Geografía",
+    "question": "geografía 1",
+    "options": {
+      "A": "Ecuador - 90° N y S",
+      "B": "Ecuador - 90° E y O",
+      "C": "Ecuador - 180° N y S",
+      "D": "Meridiano 0° - 90° N y S"
+    },
+    "correct": "A",
+    "explanation": "La respuesta es incorrecta porque el este y oeste corresponden al Meridiano de Greenwich y miden la longitud."
+  },
+  {
+    "subject": "Geografía",
+    "question": "geografía 10",
+    "options": {
+      "A": "Zihuatanejo",
+      "B": "Huatulco",
+      "C": "Tampico",
+      "D": "Cancún"
+    },
+    "correct": "C",
+    "explanation": "Respuesta incorrecta ya que Zihuatanejo es un puerto turístico."
+  },
+  {
+    "subject": "Geografía",
+    "question": "geografía 11",
+    "options": {
+      "A": "Pachuca - Hidalgo",
+      "B": "Cuernavaca - Morelos",
+      "C": "León - Guanajuato",
+      "D": "Torreón - Coahuila"
+    },
+    "correct": "D",
+    "explanation": "La respuesta  es incorrecta porque el Estado de Hidalgo se encuentra en el centro del país."
+  },
+  {
+    "subject": "Geografía",
+    "question": "geografía 12",
+    "options": {
+      "A": "Jalapa",
+      "B": "Villahermosa",
+      "C": "Oaxaca",
+      "D": "Monterrey"
+    },
+    "correct": "D",
+    "explanation": "Respuesta incorrecta porque Jalapa se encuentra en el Estado de Veracruz cuyas actividades económicas son la pesca y la ganadería."
+  },
+  {
+    "subject": "Geografía",
+    "question": "geografía 2",
+    "options": {
+      "A": "Las estaciones del año",
+      "B": "La desviación de los cuerpos al caer",
+      "C": "Los días y las noches",
+      "D": "La diferencia horaria"
+    },
+    "correct": "A",
+    "explanation": "La respuesta es correcta porque durante su recorrido alrededor del Sol que dura 365 días se generan las cuatro estaciones del año."
+  },
+  {
+    "subject": "Geografía",
+    "question": "geografía 3",
+    "options": {
+      "A": "Coahuila, Nuevo León y Tamaulipas",
+      "B": "Guanajuato, Aguascalientes y San Luis Potosí",
+      "C": "Michoacán, Guerrero y Oaxaca",
+      "D": "Sonora, Baja California y Chihuahua"
+    },
+    "correct": "C",
+    "explanation": "La respuesta es incorrecta porque estos Estados se encuentran al norte de México, lugares donde es casi nula la actividad sísmica."
+  },
+  {
+    "subject": "Geografía",
+    "question": "geografía 4",
+    "options": {
+      "A": "Dorsal",
+      "B": "Falla",
+      "C": "Plegamiento",
+      "D": "Subducción"
+    },
+    "correct": "D",
+    "explanation": "La respuesta es incorrecta porque en las dorsales oceánicas se produce un intenso vulcanismo al formarse fisuras en el manto."
+  },
+  {
+    "subject": "Geografía",
+    "question": "geografía 5",
+    "options": {
+      "A": "Cenizas y granizo",
+      "B": "Granizo y aguas termales",
+      "C": "Aguas termales y géiseres",
+      "D": "Géiseres y calizas"
+    },
+    "correct": "C",
+    "explanation": "La respuesta es incorrecta porque el granizo es característico de la lluvia no del vulcanismo."
+  },
+  {
+    "subject": "Geografía",
+    "question": "geografía 6",
+    "options": {
+      "A": "Acapulco y Coatzacoalcos",
+      "B": "Coatzacoalcos y Veracruz",
+      "C": "Veracruz y Mazatlán",
+      "D": "Mazatlán y Guaymas"
+    },
+    "correct": "B",
+    "explanation": "La respuesta es incorrecta porque en Acapulco no hay actividad petrolera."
+  },
+  {
+    "subject": "Geografía",
+    "question": "geografía 7",
+    "options": {
+      "A": "Oaxaca",
+      "B": "Chiapas",
+      "C": "Michoacán",
+      "D": "Tamaulipas"
+    },
+    "correct": "D",
+    "explanation": "La respuesta es incorrecta porque Oaxaca se encuentra en una fuerte zona sísmica."
+  },
+  {
+    "subject": "Geografía",
+    "question": "geografía 8",
+    "options": {
+      "A": "Aguascalientes",
+      "B": "Durango",
+      "C": "Querétaro",
+      "D": "Colima"
+    },
+    "correct": "D",
+    "explanation": "la respuesta es incorrecta porque Aguascalientes se encuentra en el centro del país."
+  },
+  {
+    "subject": "Geografía",
+    "question": "geografía 9",
+    "options": {
+      "A": "Baja California",
+      "B": "Nuevo León",
+      "C": "Sonora",
+      "D": "Aguascalientes"
+    },
+    "correct": "C",
+    "explanation": "La respuesta es incorrecta porque en Baja California se desarrolla más la actividad pesquera principalmente de Atún."
+  },
+  {
+    "subject": "Matemáticas",
+    "question": "Habilidad Matemática 0.1",
+    "options": {
+      "A": "30",
+      "B": "34",
+      "C": "45",
+      "D": "64"
+    },
+    "correct": "D",
+    "explanation": "Justificación didáctica no disponible."
+  },
+  {
+    "subject": "Matemáticas",
+    "question": "Habilidad Matemática 0.11",
+    "options": {
+      "A": "4",
+      "B": "5",
+      "C": "6",
+      "D": "7"
+    },
+    "correct": "B",
+    "explanation": "Justificación didáctica no disponible."
+  },
+  {
+    "subject": "Matemáticas",
+    "question": "Habilidad Matemática 0.2",
+    "options": {
+      "A": "a + 20d",
+      "B": "a + 19d",
+      "C": "a + 21d",
+      "D": "20a + d"
+    },
+    "correct": "B",
+    "explanation": "Justificación didáctica no disponible."
+  },
+  {
+    "subject": "Matemáticas",
+    "question": "Habilidad Matemática 0.3",
+    "options": {
+      "A": "80",
+      "B": "81",
+      "C": "82",
+      "D": "84"
+    },
+    "correct": "B",
+    "explanation": "Justificación didáctica no disponible."
+  },
+  {
+    "subject": "Matemáticas",
+    "question": "Habilidad Matemática 0.9",
+    "options": {
+      "A": "1/3",
+      "B": "1/2",
+      "C": "2/3",
+      "D": "3/4"
+    },
+    "correct": "A",
+    "explanation": "Justificación didáctica no disponible."
+  },
+  {
+    "subject": "Matemáticas",
+    "question": "Habilidad Matemática 1.13",
+    "options": {
+      "A": "24",
+      "B": "45",
+      "C": "59",
+      "D": "144"
+    },
+    "correct": "D",
+    "explanation": "Justificación didáctica no disponible."
+  },
+  {
+    "subject": "Matemáticas",
+    "question": "Habilidad Matemática 1.15",
+    "options": {
+      "A": "q y r son iguales",
+      "B": "r es mayor que q",
+      "C": "q es mayor que r",
+      "D": "q es el mayor de los tres"
+    },
+    "correct": "B",
+    "explanation": "Justificación didáctica no disponible."
+  },
+  {
+    "subject": "Matemáticas",
+    "question": "Habilidad Matemática 1.16",
+    "options": {
+      "A": "16",
+      "B": "20",
+      "C": "24",
+      "D": "26"
+    },
+    "correct": "C",
+    "explanation": "Justificación didáctica no disponible."
+  },
+  {
+    "subject": "Matemáticas",
+    "question": "Habilidad matemáticas 0.4",
+    "options": {
+      "A": "56",
+      "B": "57",
+      "C": "58",
+      "D": "59"
+    },
+    "correct": "B",
+    "explanation": "Justificación didáctica no disponible."
+  },
+  {
+    "subject": "Matemáticas",
+    "question": "Habilidad Matemáticas 0.6",
+    "options": {
+      "A": "15",
+      "B": "16",
+      "C": "20",
+      "D": "21"
+    },
+    "correct": "D",
+    "explanation": "Justificación didáctica no disponible."
+  },
+  {
+    "subject": "Historia",
+    "question": "Historia 1",
+    "options": {
+      "A": "La burguesía",
+      "B": "El proletariado",
+      "C": "Los artesanos",
+      "D": "Los siervos"
+    },
+    "correct": "A",
+    "explanation": "La respuesta es incorrecta porque los siervos existieron durante la Edad Media y estuvieron bajo las órdenes del señor feudal."
+  },
+  {
+    "subject": "Historia",
+    "question": "historia 10",
+    "options": {
+      "A": "I, II y III",
+      "B": "I, IV y V",
+      "C": "II, III y IV",
+      "D": "II, III y V"
+    },
+    "correct": "B",
+    "explanation": "La respuesta es incorrecta porque los aspectos II y III no formaron parte de las acciones de Maximiliano durante el Segundo Imperio. El aspecto II pertenece a Antonio López de Santa Anna."
+  },
+  {
+    "subject": "Historia",
+    "question": "historia 11",
+    "options": {
+      "A": "El movimiento de mayor poder del villismo y del zapatismo",
+      "B": "El ascenso político del grupo sonorense",
+      "C": "La marginación de los campesinos del poder",
+      "D": "El auge del carrancismo en la Revolución"
+    },
+    "correct": "A",
+    "explanation": "La respuesta es correcta porque durante el gobierno de Venustiano Carranza se dio el movimiento llamado Guerra de Guerrillas entre los ejércitos zapatista, villista y carrancista y se convocó a esta Convención para parar esta guerra cosa que no sucedió."
+  },
+  {
+    "subject": "Historia",
+    "question": "historia 12",
+    "options": {
+      "A": "Democratización y el libre comercio",
+      "B": "Descentralización y la reforma del Estado",
+      "C": "Privatización y el libre comercio",
+      "D": "Libertad de expresión y la participación ciudadana"
+    },
+    "correct": "C",
+    "explanation": "La respuesta es incorrecta porque la democratización es una acción muy independiente del Neoliberalismo."
+  },
+  {
+    "subject": "Historia",
+    "question": "historia 2",
+    "options": {
+      "A": "Hume y Dilthey",
+      "B": "Voltaire y Rousseau",
+      "C": "Leonardo y Montesquieu",
+      "D": "Fulton y Watt"
+    },
+    "correct": "B",
+    "explanation": "La respuesta es incorrecta porque Hume si fue un pensador ilustrado, pero Dilthey fue un historiador surgido en el siglo XIX."
+  },
+  {
+    "subject": "Historia",
+    "question": "historia 3",
+    "options": {
+      "A": "Estableció principios y derechos universales",
+      "B": "Dio un nuevo impulso a la monarquía",
+      "C": "Permitió que Napoleón llegara al poder",
+      "D": "Detuvo los intereses de Estados Unidos de América"
+    },
+    "correct": "A",
+    "explanation": "Al\nconcluir la Revolución Francesa, en 1789 se redactó un documento llamado “La Declaración\nde los derechos del hombre y del ciudadano”, donde se definían los derechos\npersonales y los de la comunidad además de los universales."
+  },
+  {
+    "subject": "Historia",
+    "question": "historia 4",
+    "options": {
+      "A": "Jacobinos y girodinos",
+      "B": "Liberales y bolcheviques",
+      "C": "Federalistas y centralistas",
+      "D": "Bolcheviques y mencheviques"
+    },
+    "correct": "D",
+    "explanation": "La respuesta es incorrecta porque los Jacobinos y los Girodinos pertenecen a la Revolución Francesa."
+  },
+  {
+    "subject": "Historia",
+    "question": "historia 5",
+    "options": {
+      "A": "La invasión de Etiopía",
+      "B": "La tensa situación internacional",
+      "C": "Los nuevos pactos internacionales",
+      "D": "El ataque alemán a Polonia"
+    },
+    "correct": "D",
+    "explanation": "La respuesta es incorrecta porque la situación mundial siempre ha sido muy tensa pero no fue un indicativo del inicio de la Segunda Guerra Mundial."
+  },
+  {
+    "subject": "Historia",
+    "question": "historia 6",
+    "options": {
+      "A": "I, II, III y IV",
+      "B": "I, II, IV y  VII",
+      "C": "II, IV, V y VII",
+      "D": "II, III, V y VI"
+    },
+    "correct": "B",
+    "explanation": "La respuesta es incorrecta porque en la globalización no existe la centralización del mercado."
+  },
+  {
+    "subject": "Historia",
+    "question": "historia 7",
+    "options": {
+      "A": "Maya",
+      "B": "Teotihuacana",
+      "C": "Mexica",
+      "D": "Olmeca"
+    },
+    "correct": "D",
+    "explanation": "La respuesta es incorrecta porque esta cultura nunca construyó grandes esculturas."
+  },
+  {
+    "subject": "Historia",
+    "question": "historia 8",
+    "options": {
+      "A": "I y III",
+      "B": "I y V",
+      "C": "II y IV",
+      "D": "III y V"
+    },
+    "correct": "C",
+    "explanation": "La respuesta es incorrecta porque en la Nueva España nunca existió la regencia y mucho menos el Principado."
+  },
+  {
+    "subject": "Historia",
+    "question": "historia 9",
+    "options": {
+      "A": "El Nepotismo ilustrado",
+      "B": "La creación de intendencia",
+      "C": "La expulsión de los jesuitas",
+      "D": "El pago de intereses por préstamos"
+    },
+    "correct": "D",
+    "explanation": "La respuesta es incorrecta porque el Nepotismo Ilustrado fue un movimiento donde algunas monarquías adoptaron ciertos pensamientos Ilustrados, pero nada que ver con las Reformas Borbónicas."
+  },
+  {
+    "subject": "Matemáticas",
+    "question": "La bolsa de valores inició sus actividades de la semana con 28 puntos; el lunes ganó 15 puntos, el martes perdió 12, el miércoles perdió 16, el jueves ganó 40 y el viernes perdió 18. ¿Con cuántos puntos cerró la semana?",
+    "options": {
+      "A": "40",
+      "B": "9",
+      "C": "32",
+      "D": "37"
+    },
+    "correct": "D",
+    "explanation": "Justificación didáctica no disponible."
+  },
+  {
+    "subject": "Matemáticas",
+    "question": "La caza del cóndor se debe a:",
+    "options": {
+      "A": "Una tradición ancestral",
+      "B": "Que es símbolo de la región andina",
+      "C": "Que es alimento para el ganado",
+      "D": "Creencias erróneas"
+    },
+    "correct": "D",
+    "explanation": "Justificación didáctica no disponible."
+  },
+  {
+    "subject": "Español",
+    "question": "La IDEA PRINCIPAL del texto es",
+    "options": {
+      "A": "Alertar sobre la extinción del rinoceronte",
+      "B": "Dar a conocer los países que comercializan el cuerno de rinoceronte",
+      "C": "Hacer propaganda al cuerno de rinoceronte",
+      "D": "Destacar el valor económico que tiene el cuerno de rinoceronte"
+    },
+    "correct": "A",
+    "explanation": "Justificación didáctica no disponible."
+  },
+  {
+    "subject": "Matemáticas",
+    "question": "La principal amenaza de la destrucción del cóndor es la ignorancia humana, es una opinión emitida por",
+    "options": {
+      "A": "Friedemann Kester,  autor de la película \"El último vuelo del cóndor \".",
+      "B": "Alfredo Luna, biólogo de Cecia",
+      "C": "La Corporación Ornitólogica del Ecuador",
+      "D": "La bióloga alemana Heide Kester"
+    },
+    "correct": "D",
+    "explanation": "Justificación didáctica no disponible."
+  },
+  {
+    "subject": "Matemáticas",
+    "question": "Las calificaciones que obtuvieron diez alumnos en su examen final de matemáticas son: 8, 5, 9, 6, 5, 6, 7, 6, 10, 6. La moda de esta muestra es:",
+    "options": {
+      "A": "5",
+      "B": "6",
+      "C": "6.5",
+      "D": "6.8"
+    },
+    "correct": "B",
+    "explanation": "RECORDEMOS qué la moda en una cantidad de datos es el dato que más se repite, por lo tanto, por observación no podemos dar cuenta que el dato que más se repite es el 6."
+  },
+  {
+    "subject": "Matemáticas",
+    "question": "Las normas ________ tienen las siguientes características: bilaterales, exteriores, coercibles y heterónomas.",
+    "options": {
+      "A": "Morales",
+      "B": "Urbanas",
+      "C": "Naturales",
+      "D": "Jurídicas"
+    },
+    "correct": "D",
+    "explanation": "Las normas morales  son las concepciones que los individuos tienen para distinguir el bien del mal con respecto a los valores éticos."
+  },
+  {
+    "subject": "Matemáticas",
+    "question": "Las pastillas desodorantes que se usan para aromatizar el ambiente pasan de sólido a gas. A este fenómeno se le conoce como",
+    "options": {
+      "A": "Condensación",
+      "B": "Evaporación",
+      "C": "Sublimación",
+      "D": "Ebullición"
+    },
+    "correct": "C",
+    "explanation": "Justificación didáctica no disponible."
+  },
+  {
+    "subject": "Matemáticas",
+    "question": "Lee cuidadosamente el siguiente texto y responde de la pregunta 77 a la 80",
+    "options": {
+      "A": "Emblema de la fauna salvaje",
+      "B": "Elementos decorativos",
+      "C": "Símbolos de prestigio social",
+      "D": "Materia para elaborar medicamentos"
+    },
+    "correct": "D",
+    "explanation": "En el párrafo 1 del texto nos indica que la lectura hablará sobre \"la caza furtiva del rinoceronte\" y no del símbolo del rinoceronte en Asia. La opción 1 no es la correcta."
+  },
+  {
+    "subject": "Matemáticas",
+    "question": "María tiene tres blusas azules, dos blancas, dos negras y una roja. Si al azar toma una, ¿cuál es la probabilidad de que hoy vista una blusa azul?",
+    "options": {
+      "A": "0.1",
+      "B": "0. 125",
+      "C": "0.25",
+      "D": "0. 375"
+    },
+    "correct": "D",
+    "explanation": "Justificación didáctica no disponible."
+  },
+  {
+    "subject": "Formación Cívica y Ética",
+    "question": "Mi profesor dice que la Ética no debe orientarse hacia la religión. Esto es un ejemplo de una postura",
+    "options": {
+      "A": "Política",
+      "B": "Cívica",
+      "C": "Laica",
+      "D": "Dialógica"
+    },
+    "correct": "C",
+    "explanation": "Recuerda que la política es el conjunto de decisiones tomadas para organizar una sociedad."
+  },
+  {
+    "subject": "Matemáticas",
+    "question": "Nos permite reconocer nuestras capacidades, apreciarnos y confiar en nosotros mismos:",
+    "options": {
+      "A": "Amistad",
+      "B": "Integridad",
+      "C": "Individualidad",
+      "D": "Autoestima"
+    },
+    "correct": "D",
+    "explanation": "Afecto personal, puro y desinteresado, compartido con otra persona, que nace y se fortalece con el trato."
+  },
+  {
+    "subject": "Matemáticas",
+    "question": "Nuestras tradiciones, costumbres, símbolos y aspiraciones comunes se representan y reafirman a través del",
+    "options": {
+      "A": "Nacionalismo",
+      "B": "Culturalismo",
+      "C": "Internacionalismo",
+      "D": "Constitucionalismo"
+    },
+    "correct": "A",
+    "explanation": "Sentimiento de pertenencia y afecto con la realidad y la historia de una nación."
+  },
+  {
+    "subject": "Química",
+    "question": "Química 1.1",
+    "options": {
+      "A": "Cristalización",
+      "B": "Sublimación",
+      "C": "Fusión",
+      "D": "Decantación"
+    },
+    "correct": "D",
+    "explanation": "Justificación didáctica no disponible."
+  },
+  {
+    "subject": "Química",
+    "question": "Química 1.2",
+    "options": {
+      "A": "Compuestos",
+      "B": "Elementos",
+      "C": "Combinaciones",
+      "D": "Mezclas"
+    },
+    "correct": "D",
+    "explanation": "Justificación didáctica no disponible."
+  },
+  {
+    "subject": "Química",
+    "question": "Química 1.3",
+    "options": {
+      "A": "Elementos",
+      "B": "Mezclas Homogéneas",
+      "C": "Compuestos",
+      "D": "Mezclas Heterogéneas"
+    },
+    "correct": "A",
+    "explanation": "Justificación didáctica no disponible."
+  },
+  {
+    "subject": "Química",
+    "question": "Química 1.4",
+    "options": {
+      "A": "Pesadas y localizadas en núcleo",
+      "B": "Ligeras y sin carga eléctrica",
+      "C": "Pesadas y localizadas alrededor del núcleo",
+      "D": "Ligeras y localizadas alrededor del núcleo"
+    },
+    "correct": "D",
+    "explanation": "Justificación didáctica no disponible."
+  },
+  {
+    "subject": "Química",
+    "question": "Química 10",
+    "options": {
+      "A": "Mayor a 7",
+      "B": "Mayor a 14",
+      "C": "Igual a 7",
+      "D": "Menor a 7"
+    },
+    "correct": "D",
+    "explanation": "Justificación didáctica no disponible."
+  },
+  {
+    "subject": "Química",
+    "question": "Química 11",
+    "options": {
+      "A": "Neutralización",
+      "B": "Óxido - reducción",
+      "C": "Descomposición",
+      "D": "Desplazamiento"
+    },
+    "correct": "B",
+    "explanation": "Justificación didáctica no disponible."
+  },
+  {
+    "subject": "Química",
+    "question": "Química 12",
+    "options": {
+      "A": "Anhídridos",
+      "B": "Sales neutras",
+      "C": "Sales ácidas",
+      "D": "Óxidos básicos"
+    },
+    "correct": "D",
+    "explanation": "Justificación didáctica no disponible."
+  },
+  {
+    "subject": "Química",
+    "question": "Química 5",
+    "options": {
+      "A": "I: a,e - II: a,c - III: d,e",
+      "B": "I: b,e - II: b,c - III: a,c",
+      "C": "I: a,e - II: a,c - III: b,c",
+      "D": "I: a,e - II: b,c - III: d,c"
+    },
+    "correct": "D",
+    "explanation": "Justificación didáctica no disponible."
+  },
+  {
+    "subject": "Química",
+    "question": "Química 6",
+    "options": {
+      "A": "S, P, Ca, B",
+      "B": "S, K, C, B",
+      "C": "Na, P, Ca, B",
+      "D": "Na, K, Ca, B"
+    },
+    "correct": "D",
+    "explanation": "Justificación didáctica no disponible."
+  },
+  {
+    "subject": "Química",
+    "question": "Química 7",
+    "options": {
+      "A": "Sólo se modifica la temperatura del agua",
+      "B": "Cambia la estructura del agua",
+      "C": "Cambia de estado físico",
+      "D": "Se altera la naturaleza íntima del agua"
+    },
+    "correct": "C",
+    "explanation": "Justificación didáctica no disponible."
+  },
+  {
+    "subject": "Química",
+    "question": "Química 8",
+    "options": {
+      "A": "Destilación",
+      "B": "Sublimación",
+      "C": "Combustión",
+      "D": "Evaporación"
+    },
+    "correct": "C",
+    "explanation": "Justificación didáctica no disponible."
+  },
+  {
+    "subject": "Química",
+    "question": "Química 9",
+    "options": {
+      "A": "Reactivos - mezclas",
+      "B": "Elementos - moléculas",
+      "C": "Reactivos - productos",
+      "D": "Moléculas - elementos"
+    },
+    "correct": "C",
+    "explanation": "Justificación didáctica no disponible."
+  },
+  {
+    "subject": "Matemáticas",
+    "question": "Relaciona las siguientes situaciones con su grado de riesgo para adquirir SIDA. Situaciones I. Tener relaciones sexuales con parejas ocasionales  II. Donar sangre en un centro de salud donde se utiliza material nuevo y desechable III. Saludar de mano a un",
+    "options": {
+      "A": "I: c - II: b - III: a",
+      "B": "I: b - II: c - III: b",
+      "C": "I: a - II: b - III: a",
+      "D": "I: a - II: c - III: c"
+    },
+    "correct": "D",
+    "explanation": "-Las relaciones sexuales son de bajo riesgo cuando se tiene una sola pareja.\n-Si la donación de sangre se hace con las medidas necesarias, no hay riesgo alguno.\n-Dar el saludo a una persona con SIDA, no tiene riesgo alguno."
+  },
+  {
+    "subject": "Matemáticas",
+    "question": "Se utiliza al cóndor para elaborar",
+    "options": {
+      "A": "Amuletos",
+      "B": "Bastones",
+      "C": "Alimentos",
+      "D": "Medicinas"
+    },
+    "correct": "D",
+    "explanation": "Justificación didáctica no disponible."
+  },
+  {
+    "subject": "Matemáticas",
+    "question": "Selecciona la opción correcta con el par de palabras que muestra una relación ANÁLOGA al par que se presenta en mayúsculas  MANO-ESCRIBANO",
+    "options": {
+      "A": "Leche - lechero",
+      "B": "Trayecto - camino",
+      "C": "Cabeza - hombre",
+      "D": "Garganta - cantante"
+    },
+    "correct": "D",
+    "explanation": "En la analogía trayecto es a camino se destaca una ruta a seguir, en cambio en la analogía mano-escribano es la función que tiene la mano al escribir."
+  },
+  {
+    "subject": "Matemáticas",
+    "question": "Selecciona la opción correcta con el par de palabras que muestra una relación ANÁLOGA al par que se presenta en mayúsculas  VACUNA - ENFERMEDAD",
+    "options": {
+      "A": "Microbio - vacuna",
+      "B": "Virus - curación",
+      "C": "Organismo - microbio",
+      "D": "Aspirina - dolor"
+    },
+    "correct": "D",
+    "explanation": "En la analogía microbio es a vacuna se refiere a la composición de la vacuna. En la comparación de vacuna es a enfermedad se refiera a que la vacuna combate una enfermedad."
+  },
+  {
+    "subject": "Geografía",
+    "question": "Selecciona la opción cuyo significado sea el MÁS PARECIDO al de la palabra en mayúsculas El cóndor es SÍMBOLO de los países andinos.",
+    "options": {
+      "A": "Realidad",
+      "B": "Emblema",
+      "C": "Originario",
+      "D": "Propio"
+    },
+    "correct": "B",
+    "explanation": "Justificación didáctica no disponible."
+  },
+  {
+    "subject": "Matemáticas",
+    "question": "Selecciona la opción cuyo significado sea el MÁS PARECIDO al de la palabra en mayúsculas El rinoceronte es uno de los animales más EMBLEMÁTICOS de la fauna salvaje.",
+    "options": {
+      "A": "Importantes",
+      "B": "Conocidos",
+      "C": "Representativos",
+      "D": "Valiosos"
+    },
+    "correct": "C",
+    "explanation": "Justificación didáctica no disponible."
+  },
+  {
+    "subject": "Español",
+    "question": "Selecciona la opción que sustituya con un SINÓNIMO la palabra en mayúsculas  En las grandes ciudades se desconoce de donde PROCEDE una persona",
+    "options": {
+      "A": "Reside",
+      "B": "Deriva",
+      "C": "Emana",
+      "D": "Viene"
+    },
+    "correct": "D",
+    "explanation": "El sinónimo de la palabra \"procede\" no es reside que significar vivir, morar de acuerdo a la oración."
+  },
+  {
+    "subject": "Historia",
+    "question": "Selecciona la opción que sustituya con un SINÓNIMO la palabra en mayúsculas  La convención nombró un presidente INTERINO",
+    "options": {
+      "A": "Inamovible",
+      "B": "Transitorio",
+      "C": "Permanente",
+      "D": "Intransigente"
+    },
+    "correct": "B",
+    "explanation": "La palabra inamovible es opuesta a interino y no es su sinónimo."
+  },
+  {
+    "subject": "Matemáticas",
+    "question": "Son formas de gobierno y administración de la Nueva España  I. Regencia  II. Audiencia  III. Principado  IV. Virreinato  V. Monarquía",
+    "options": {
+      "A": "I y III",
+      "B": "I y V",
+      "C": "II y IV",
+      "D": "III y V"
+    },
+    "correct": "C",
+    "explanation": "Justificación didáctica no disponible."
+  },
+  {
+    "subject": "Física",
+    "question": "Tipo de maltrato fundamental que ocurre cuando alguien utiliza su fuerza corporal, un arma o cualquier otro objeto en contra de otra para someterla:",
+    "options": {
+      "A": "Físico",
+      "B": "Emocional",
+      "C": "Social",
+      "D": "Psicológico"
+    },
+    "correct": "A",
+    "explanation": "El daño físico, se genera cuando se ejerce fuerza sobre otra persona ya sean golpes con la mano o algún objeto, dejando así heridas o marcas en el cuerpo."
+  },
+  {
+    "subject": "Matemáticas",
+    "question": "Todos los hombres y mujeres sin importar su edad ni condición social, raza o religión y cultura tienen y deben de disfrutar de los derechos humanos porque éstos tienen la características de ser",
+    "options": {
+      "A": "Inherentes",
+      "B": "Inalienables",
+      "C": "Universales",
+      "D": "Generales"
+    },
+    "correct": "D",
+    "explanation": "Los derechos humanos son inherentes a todos los seres humanos, es decir desde el momento de nacer sin importar nacionalidad, lugar de residencia, sexo, origen nacional o étnico etc.."
+  },
+  {
+    "subject": "Matemáticas",
+    "question": "Una forma de salvar al cóndor es:",
+    "options": {
+      "A": "Crear más sociedades conservacionistas",
+      "B": "Aumentar la producción de ganado cimarrón",
+      "C": "Conservar las áreas donde habita",
+      "D": "Vigilar al ganado de encierro"
+    },
+    "correct": "C",
+    "explanation": "Justificación didáctica no disponible."
+  }
+]
