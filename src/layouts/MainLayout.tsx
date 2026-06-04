@@ -1,14 +1,22 @@
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
-import { 
-  LayoutDashboard, Users, CreditCard, GraduationCap, 
+import { useEffect } from 'react';
+import {
+  LayoutDashboard, Users, CreditCard, GraduationCap,
   MessageSquare, Search, Smartphone, Bell,
   ClipboardList, Settings, Link2, Briefcase, HeartHandshake
 } from 'lucide-react';
 import { useAppStore } from '../store/useAppStore';
 
 export default function MainLayout() {
-  const { setShowParentPortal } = useAppStore();
+  const { setShowParentPortal, fetchCategories, fetchTransactions, fetchStudents } = useAppStore();
   const location = useLocation();
+
+  // Carga global de datos al montar el layout (una sola vez)
+  useEffect(() => {
+    fetchCategories();
+    fetchTransactions();
+    fetchStudents();
+  }, [fetchCategories, fetchTransactions, fetchStudents]);
 
   const getHeaderTitle = () => {
     const path = location.pathname;
@@ -22,6 +30,7 @@ export default function MainLayout() {
     if (path === '/enlaces') return 'Asignación de Costos';
     if (path === '/servicios') return 'Catálogo de Servicios';
     if (path === '/examen') return 'Exámenes';
+    if (path === '/usuarios') return 'Gestión de Usuarios';
     return '';
   };
 
@@ -45,7 +54,7 @@ export default function MainLayout() {
           </div>
           <div className="logo-text">CRECE</div>
         </div>
-        
+
         <nav className="nav-menu">
           {/* Módulos Principales */}
           {[
@@ -57,7 +66,7 @@ export default function MainLayout() {
             { name: 'Exámenes', path: '/examen', icon: ClipboardList },
             { name: 'Comunicación', path: '/comunicacion', icon: MessageSquare },
           ].map((item) => (
-            <NavLink 
+            <NavLink
               key={item.name}
               to={item.path}
               end={item.path === '/'}
@@ -76,8 +85,9 @@ export default function MainLayout() {
             { name: 'Categorías', path: '/categorias', icon: Settings },
             { name: 'Servicios', path: '/servicios', icon: Briefcase },
             { name: 'Costos', path: '/enlaces', icon: Link2 },
+            { name: 'Usuarios', path: '/usuarios', icon: Users },
           ].map((item) => (
-            <NavLink 
+            <NavLink
               key={item.name}
               to={item.path}
               className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
@@ -101,7 +111,7 @@ export default function MainLayout() {
             <button className="btn-secondary" style={{ padding: '10px 20px', gap: '8px', background: 'rgba(15, 56, 105, 0.06)', color: 'var(--brand-blue)', border: '1px solid rgba(15, 56, 105, 0.15)', borderRadius: 'var(--radius-md)', cursor: 'pointer', display: 'flex', alignItems: 'center', height: '44px', fontWeight: '600' }} onClick={() => setShowParentPortal(true)}>
               <Smartphone size={16} /> Ver como Papá
             </button>
-            <button className="btn-primary" style={{ padding: '10px 20px', gap: '8px', background: 'var(--gradient-accent)', color: '#081c33', border: 'none', borderRadius: 'var(--radius-md)', cursor: 'pointer', boxShadow: '0 4px 10px rgba(229, 169, 59, 0.25)', display: 'flex', alignItems: 'center', height: '44px', width: 'auto' }} onClick={() => window.open('/estudiante', '_blank')}>
+            <button className="btn-primary" style={{ padding: '10px 20px', gap: '8px', background: 'var(--gradient-accent)', color: '#081c33', border: 'none', borderRadius: 'var(--radius-md)', cursor: 'pointer', boxShadow: '0 4px 10px rgba(229, 169, 59, 0.25)', display: 'flex', alignItems: 'center', height: '44px' }} onClick={() => window.open('/estudiante', '_blank')}>
               <GraduationCap size={16} /> Ver como Alumno
             </button>
             <button className="icon-btn">

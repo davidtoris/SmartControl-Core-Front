@@ -493,7 +493,12 @@ export default function ExamenPage() {
   // --- RESPONDER PREGUNTA ---
   const handleAnswerSelect = (option: string) => {
     setAnswers(prev => ({ ...prev, [currentQuestionIndex]: option }));
-    addLog(`Respondió Pregunta ${currentQuestionIndex + 1} con Opción ${option}.`);
+    const q = examQuestions[currentQuestionIndex];
+    const answerText = q?.options?.[option as keyof typeof q.options] || option;
+    const answerTextShort = typeof answerText === 'string' && answerText.length > 60
+      ? answerText.slice(0, 60) + '…'
+      : answerText;
+    addLog(`📝 Reactivo ${currentQuestionIndex + 1} [${q?.subject || ''}] — Seleccionó opción ${option}: "${answerTextShort}"`);
   };
 
   // --- MARCAR PREGUNTA ---
@@ -501,29 +506,37 @@ export default function ExamenPage() {
     const isCurrentlyFlagged = flaggedQuestions[currentQuestionIndex];
     setFlaggedQuestions(prev => ({ ...prev, [currentQuestionIndex]: !isCurrentlyFlagged }));
     addLog(isCurrentlyFlagged 
-      ? `Desmarcó Pregunta ${currentQuestionIndex + 1} de revisión.` 
-      : `Marcó Pregunta ${currentQuestionIndex + 1} para revisión posterior. ⚠️`
+      ? `Desmarcó Reactivo ${currentQuestionIndex + 1} de revisión.` 
+      : `⭐ Marcó Reactivo ${currentQuestionIndex + 1} para revisión posterior.`
     );
   };
 
   // --- NAVEGACIÓN ---
   const handleNextQuestion = () => {
     if (currentQuestionIndex < examQuestions.length - 1) {
-      setCurrentQuestionIndex(prev => prev + 1);
-      addLog(`Navegó a Pregunta ${currentQuestionIndex + 2}.`);
+      const nextIdx = currentQuestionIndex + 1;
+      const nextQ = examQuestions[nextIdx];
+      const qSnippet = nextQ?.question?.length > 55 ? nextQ.question.slice(0, 55) + '…' : nextQ?.question || '';
+      setCurrentQuestionIndex(nextIdx);
+      addLog(`→ Avanzó al Reactivo ${nextIdx + 1} [${nextQ?.subject || ''}]: "${qSnippet}"`);
     }
   };
 
   const handlePrevQuestion = () => {
     if (currentQuestionIndex > 0) {
-      setCurrentQuestionIndex(prev => prev - 1);
-      addLog(`Navegó a Pregunta ${currentQuestionIndex}.`);
+      const prevIdx = currentQuestionIndex - 1;
+      const prevQ = examQuestions[prevIdx];
+      const qSnippet = prevQ?.question?.length > 55 ? prevQ.question.slice(0, 55) + '…' : prevQ?.question || '';
+      setCurrentQuestionIndex(prevIdx);
+      addLog(`← Retrocedió al Reactivo ${prevIdx + 1} [${prevQ?.subject || ''}]: "${qSnippet}"`);
     }
   };
 
   const handleJumpToQuestion = (index: number) => {
+    const jumpQ = examQuestions[index];
+    const qSnippet = jumpQ?.question?.length > 55 ? jumpQ.question.slice(0, 55) + '…' : jumpQ?.question || '';
     setCurrentQuestionIndex(index);
-    addLog(`Saltó directo a Pregunta ${index + 1}.`);
+    addLog(`🔀 Saltó al Reactivo ${index + 1} [${jumpQ?.subject || ''}]: "${qSnippet}"`);
   };
 
   // Atajos de Teclado y Controles Inteligentes para el Examen Activo
@@ -651,7 +664,7 @@ export default function ExamenPage() {
     if (!student) return;
 
     const endedAtStr = new Date().toISOString();
-    const duration = totalDuration - timeLeft;
+    const duration = Math.round((Date.now() - new Date(startedAt).getTime()) / 1000);
 
     // Calcular puntaje
     let score = 0;
@@ -679,7 +692,14 @@ export default function ExamenPage() {
       answers,
       auditLog: finalLog,
       integrityScore: integrity,
-      cheatingCanceled: false
+      cheatingCanceled: false,
+      questionsSnapshot: examQuestions.map(q => ({
+        subject: q.subject,
+        question: q.question,
+        options: q.options as Record<string, string>,
+        correct: q.correct,
+        explanation: q.explanation
+      }))
     };
 
     // Registrar en Zustand
@@ -700,7 +720,7 @@ export default function ExamenPage() {
     if (!student) return;
 
     const endedAtStr = new Date().toISOString();
-    const duration = totalDuration - timeLeft;
+    const duration = Math.round((Date.now() - new Date(startedAt).getTime()) / 1000);
 
     // Al ser expulsado por trampas, el puntaje oficial se anula a 0
     const finalLog = [...auditLog, { 
@@ -719,7 +739,14 @@ export default function ExamenPage() {
       answers,
       auditLog: finalLog,
       integrityScore: 0,
-      cheatingCanceled: true
+      cheatingCanceled: true,
+      questionsSnapshot: examQuestions.map(q => ({
+        subject: q.subject,
+        question: q.question,
+        options: q.options as Record<string, string>,
+        correct: q.correct,
+        explanation: q.explanation
+      }))
     };
 
     // Registrar en Zustand
@@ -3031,7 +3058,7 @@ export default function ExamenPage() {
             {/* Bitácora de honestidad del Intento */}
             <div className="question-card" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <h3 style={{ fontSize: '15px', fontWeight: '700', color: 'var(--text-primary)', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Clock size={16} color="var(--brand-yellow)" /> Bitácora Oficial de Supervisión Académica (Proctoreo)
+                <Clock size={16} color="var(--brand-yellow)" /> Bitácora Oficial de Supervisión Académica
               </h3>
               <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: 0 }}>
                 Este registro detalla cronológicamente la navegación del estudiante y las alertas de seguridad de proctoreo generadas en tiempo real durante la prueba.

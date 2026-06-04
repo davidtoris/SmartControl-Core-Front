@@ -12,6 +12,7 @@ import ExamenPage from './pages/ExamenPage';
 import EstudiantePortalPage from './pages/EstudiantePortalPage';
 import ExamenValidationPage from './pages/ExamenValidationPage';
 import CRMPage from './pages/CRMPage';
+import UsuariosPage from './pages/UsuariosPage';
 import Modals from './components/Modals';
 import './App.css';
 
@@ -37,6 +38,7 @@ function App() {
           <Route path="categorias" element={<ConfiguracionPage />} />
           <Route path="enlaces" element={<ConfiguracionPage />} />
           <Route path="servicios" element={<ConfiguracionPage />} />
+          <Route path="usuarios" element={<UsuariosPage />} />
         </Route>
       </Routes>
       <Modals />

@@ -82,11 +82,11 @@ export default function ConfiguracionPage() {
   const [copiedToken, setCopiedToken] = useState<string | null>(null);
   const [newEnlace, setNewEnlace] = useState({
     curso: '',
-    costoInscripcion: 0,
-    costoContado: 9500,
-    costoPagos: 11000,
-    planPagosTotales: 6,
-    usosMaximos: 1,
+    costoInscripcion: '',
+    costoContado: '',
+    costoPagos: '',
+    planPagosTotales: '',
+    usosMaximos: '',
     expiraEn: ''
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -236,6 +236,11 @@ export default function ConfiguracionPage() {
     try {
       const dataToSend = {
         ...newEnlace,
+        costoInscripcion: Number(newEnlace.costoInscripcion || 0),
+        costoContado: Number(newEnlace.costoContado || 0),
+        costoPagos: Number(newEnlace.costoPagos || 0),
+        planPagosTotales: Number(newEnlace.planPagosTotales || 0),
+        usosMaximos: Number(newEnlace.usosMaximos || 0),
         expiraEn: newEnlace.expiraEn ? new Date(newEnlace.expiraEn).toISOString() : null
       };
       
@@ -245,11 +250,11 @@ export default function ConfiguracionPage() {
       
       setNewEnlace({
         curso: '',
-        costoInscripcion: 0,
-        costoContado: 9500,
-        costoPagos: 11000,
-        planPagosTotales: 6,
-        usosMaximos: 1,
+        costoInscripcion: '',
+        costoContado: '',
+        costoPagos: '',
+        planPagosTotales: '',
+        usosMaximos: '',
         expiraEn: ''
       });
     } catch (error) {
@@ -1548,23 +1553,23 @@ export default function ConfiguracionPage() {
               <AlertTriangle size={24} />
             </div>
             <div>
-              <h4 style={{ fontSize: '18px', fontWeight: '700', margin: '0 0 8px 0', color: 'var(--text-primary)' }}>¿Confirmar Eliminación?</h4>
-              <p style={{ fontSize: '14px', color: 'var(--text-secondary)', margin: 0, lineHeight: '1.5' }}>
+              <h4 style={{ fontSize: '18px', fontWeight: '700', margin: '0 0 8px 0', color: '#fff' }}>¿Confirmar Eliminación?</h4>
+              <p style={{ fontSize: '14px', color: 'rgba(255,255,255,0.65)', margin: 0, lineHeight: '1.5' }}>
                 ¿Estás seguro de que deseas eliminar la {deleteConfirm.type === 'category' ? 'categoría principal' : 'subcategoría'}{' '}
-                <strong>"{deleteConfirm.name}"</strong>? Esta acción no se puede deshacer.
+                <strong style={{ color: '#fff' }}>"{deleteConfirm.name}"</strong>? Esta acción no se puede deshacer.
               </p>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginTop: '8px' }}>
               <button 
                 type="button" 
                 style={{
-                  background: 'rgba(255,255,255,0.05)',
-                  border: '1px solid var(--border-color)',
+                  background: 'rgba(255,255,255,0.08)',
+                  border: '1px solid rgba(255,255,255,0.15)',
                   borderRadius: '10px',
                   padding: '10px 16px',
                   fontWeight: '600',
                   fontSize: '13px',
-                  color: 'var(--text-primary)',
+                  color: 'rgba(255,255,255,0.75)',
                   cursor: 'pointer',
                   transition: 'all 0.2s'
                 }}
@@ -1645,16 +1650,16 @@ export default function ConfiguracionPage() {
               background: 'linear-gradient(180deg, rgba(255,255,255,0.02) 0%, transparent 100%)'
             }}>
               <div>
-                <h3 style={{ fontSize: '20px', fontWeight: '700', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <h3 style={{ fontSize: '20px', fontWeight: '700', color: '#ffffff', display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <Lock size={20} style={{ color: 'var(--brand-blue)' }} /> Asignar Costos a Servicio
                 </h3>
-                <p style={{ color: 'var(--text-secondary)', fontSize: '13px', marginTop: '4px' }}>
+                <p style={{ color: 'rgba(255, 255, 255, 0.7)', fontSize: '13px', marginTop: '4px' }}>
                   Define y protege las tarifas de inscripción para tus programas.
                 </p>
               </div>
               <button 
                 onClick={() => setShowCreateModal(false)}
-                style={{ background: 'rgba(255,255,255,0.05)', border: 'none', width: '32px', height: '32px', borderRadius: '50%', color: 'var(--text-secondary)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                style={{ background: 'rgba(255,255,255,0.05)', border: 'none', width: '32px', height: '32px', borderRadius: '50%', color: 'rgba(255, 255, 255, 0.7)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
               >
                 ✕
               </button>
@@ -1666,14 +1671,14 @@ export default function ConfiguracionPage() {
                 
                 {/* Curso */}
                 <div style={{ gridColumn: 'span 2' }}>
-                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: 'var(--text-secondary)', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#ffffff', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                     Curso Aplicable
                   </label>
                   <select
                     value={newEnlace.curso}
                     onChange={e => setNewEnlace({ ...newEnlace, curso: e.target.value })}
                     required
-                    style={{ width: '100%', background: 'rgba(0,0,0,0.3)', border: '1px solid var(--border-color)', borderRadius: '10px', padding: '12px', color: '#fff', fontSize: '14px', fontWeight: '500', outline: 'none' }}
+                    style={{ width: '100%', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255, 255, 255, 0.15)', borderRadius: '10px', padding: '12px', color: '#fff', fontSize: '14px', fontWeight: '500', outline: 'none' }}
                   >
                     <option value="" disabled style={{ background: '#161c2d' }}>-- Selecciona un Servicio del Catálogo --</option>
                     {servicios.filter(s => s.activo).map(srv => (
@@ -1684,61 +1689,64 @@ export default function ConfiguracionPage() {
 
                 {/* Costo Inscripción */}
                 <div>
-                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: 'var(--text-secondary)', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#ffffff', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                     Inscripción ($)
                   </label>
                   <div style={{ position: 'relative' }}>
-                    <DollarSign size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
+                    <DollarSign size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'rgba(255, 255, 255, 0.5)' }} />
                     <input
                       type="number"
                       required
                       min="0"
                       value={newEnlace.costoInscripcion}
-                      onChange={e => setNewEnlace({ ...newEnlace, costoInscripcion: Number(e.target.value) })}
-                      style={{ width: '100%', background: 'rgba(0,0,0,0.3)', border: '1px solid var(--border-color)', borderRadius: '10px', padding: '12px 12px 12px 32px', color: '#fff', fontSize: '14px', outline: 'none' }}
+                      onChange={e => setNewEnlace({ ...newEnlace, costoInscripcion: e.target.value })}
+                      placeholder="0"
+                      style={{ width: '100%', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255, 255, 255, 0.15)', borderRadius: '10px', padding: '12px 12px 12px 32px', color: '#fff', fontSize: '14px', outline: 'none' }}
                     />
                   </div>
                 </div>
 
                 {/* Costo Contado */}
                 <div>
-                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: 'var(--text-secondary)', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#ffffff', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                     Costo Contado ($)
                   </label>
                   <div style={{ position: 'relative' }}>
-                    <DollarSign size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
+                    <DollarSign size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'rgba(255, 255, 255, 0.5)' }} />
                     <input
                       type="number"
                       required
                       min="1"
                       value={newEnlace.costoContado}
-                      onChange={e => setNewEnlace({ ...newEnlace, costoContado: Number(e.target.value) })}
-                      style={{ width: '100%', background: 'rgba(0,0,0,0.3)', border: '1px solid var(--border-color)', borderRadius: '10px', padding: '12px 12px 12px 32px', color: '#fff', fontSize: '14px', outline: 'none' }}
+                      onChange={e => setNewEnlace({ ...newEnlace, costoContado: e.target.value })}
+                      placeholder="0"
+                      style={{ width: '100%', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255, 255, 255, 0.15)', borderRadius: '10px', padding: '12px 12px 12px 32px', color: '#fff', fontSize: '14px', outline: 'none' }}
                     />
                   </div>
                 </div>
 
                 {/* Costo Pagos */}
                 <div>
-                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: 'var(--text-secondary)', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#ffffff', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                     Total Financiado ($)
                   </label>
                   <div style={{ position: 'relative' }}>
-                    <DollarSign size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
+                    <DollarSign size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'rgba(255, 255, 255, 0.5)' }} />
                     <input
                       type="number"
                       required
                       min="1"
                       value={newEnlace.costoPagos}
-                      onChange={e => setNewEnlace({ ...newEnlace, costoPagos: Number(e.target.value) })}
-                      style={{ width: '100%', background: 'rgba(0,0,0,0.3)', border: '1px solid var(--border-color)', borderRadius: '10px', padding: '12px 12px 12px 32px', color: '#fff', fontSize: '14px', outline: 'none' }}
+                      onChange={e => setNewEnlace({ ...newEnlace, costoPagos: e.target.value })}
+                      placeholder="0"
+                      style={{ width: '100%', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255, 255, 255, 0.15)', borderRadius: '10px', padding: '12px 12px 12px 32px', color: '#fff', fontSize: '14px', outline: 'none' }}
                     />
                   </div>
                 </div>
 
                 {/* Número de Mensualidades */}
                 <div>
-                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: 'var(--text-secondary)', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#ffffff', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                     Mensualidades (Cuotas)
                   </label>
                   <input
@@ -1747,14 +1755,15 @@ export default function ConfiguracionPage() {
                     min="1"
                     max="12"
                     value={newEnlace.planPagosTotales}
-                    onChange={e => setNewEnlace({ ...newEnlace, planPagosTotales: Number(e.target.value) })}
-                    style={{ width: '100%', background: 'rgba(0,0,0,0.3)', border: '1px solid var(--border-color)', borderRadius: '10px', padding: '12px', color: '#fff', fontSize: '14px', outline: 'none' }}
+                    onChange={e => setNewEnlace({ ...newEnlace, planPagosTotales: e.target.value })}
+                    placeholder="0"
+                    style={{ width: '100%', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255, 255, 255, 0.15)', borderRadius: '10px', padding: '12px', color: '#fff', fontSize: '14px', outline: 'none' }}
                   />
                 </div>
 
                 {/* Usos Máximos */}
                 <div>
-                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: 'var(--text-secondary)', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#ffffff', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                     Límite de Usos (Cupos)
                   </label>
                   <input
@@ -1762,22 +1771,23 @@ export default function ConfiguracionPage() {
                     required
                     min="1"
                     value={newEnlace.usosMaximos}
-                    onChange={e => setNewEnlace({ ...newEnlace, usosMaximos: Number(e.target.value) })}
-                    style={{ width: '100%', background: 'rgba(0,0,0,0.3)', border: '1px solid var(--border-color)', borderRadius: '10px', padding: '12px', color: '#fff', fontSize: '14px', outline: 'none' }}
-                    title="1 para promociones personalizadas de un solo alumno, o más para campañas abiertas."
+                    onChange={e => setNewEnlace({ ...newEnlace, usosMaximos: e.target.value })}
+                    placeholder="0"
+                    style={{ width: '100%', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255, 255, 255, 0.15)', borderRadius: '10px', padding: '12px', color: '#fff', fontSize: '14px', outline: 'none' }}
+                    title="1 para promociones personalizadas de un solo alumno, o más para campaigns abiertas."
                   />
                 </div>
 
                 {/* Fecha Expiración */}
                 <div>
-                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: 'var(--text-secondary)', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#ffffff', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                     Fecha de Expiración
                   </label>
                   <input
                     type="date"
                     value={newEnlace.expiraEn}
                     onChange={e => setNewEnlace({ ...newEnlace, expiraEn: e.target.value })}
-                    style={{ width: '100%', background: 'rgba(0,0,0,0.3)', border: '1px solid var(--border-color)', borderRadius: '10px', padding: '12px', color: '#fff', fontSize: '14px', outline: 'none' }}
+                    style={{ width: '100%', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255, 255, 255, 0.15)', borderRadius: '10px', padding: '12px', color: '#fff', fontSize: '14px', outline: 'none', colorScheme: 'dark' }}
                   />
                 </div>
               </div>
@@ -1785,7 +1795,7 @@ export default function ConfiguracionPage() {
               {/* Warning box */}
               <div style={{ display: 'flex', gap: '10px', background: 'rgba(59, 130, 246, 0.08)', border: '1px solid rgba(59, 130, 246, 0.15)', borderRadius: '12px', padding: '14px', marginBottom: '24px' }}>
                 <AlertCircle size={18} style={{ color: 'var(--brand-blue)', flexShrink: 0, marginTop: '2px' }} />
-                <p style={{ fontSize: '12px', color: 'var(--text-secondary)', lineHeight: '1.5' }}>
+                <p style={{ fontSize: '12px', color: 'rgba(255, 255, 255, 0.7)', lineHeight: '1.5' }}>
                   <strong>Seguridad de Datos:</strong> Al enviar, este registro se guardará permanentemente en base de datos. Ningún usuario externo o aspirante podrá registrarse alterando los valores en la URL.
                 </p>
               </div>
@@ -1796,14 +1806,15 @@ export default function ConfiguracionPage() {
                   type="button"
                   onClick={() => setShowCreateModal(false)}
                   style={{
-                    background: 'rgba(255,255,255,0.05)',
-                    border: '1px solid var(--border-color)',
+                    background: 'rgba(255, 255, 255, 0.1)',
+                    border: '1px solid rgba(255, 255, 255, 0.25)',
                     padding: '12px 24px',
                     borderRadius: '10px',
-                    color: 'var(--text-primary)',
+                    color: '#ffffff',
                     fontSize: '14px',
                     fontWeight: '600',
-                    cursor: 'pointer'
+                    cursor: 'pointer',
+                    transition: 'all 0.2s'
                   }}
                 >
                   Cancelar
@@ -1870,10 +1881,10 @@ export default function ConfiguracionPage() {
               background: 'linear-gradient(180deg, rgba(255,255,255,0.02) 0%, transparent 100%)'
             }}>
               <div>
-                <h3 style={{ fontSize: '20px', fontWeight: '700', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <h3 style={{ fontSize: '20px', fontWeight: '700', color: '#ffffff', display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <Pencil size={20} style={{ color: 'var(--brand-blue)' }} /> Editar Asignación de Costos
                 </h3>
-                <p style={{ color: 'var(--text-secondary)', fontSize: '13px', marginTop: '4px' }}>
+                <p style={{ color: 'rgba(255, 255, 255, 0.7)', fontSize: '13px', marginTop: '4px' }}>
                   Actualiza parámetros de control. Los precios se encuentran fijos por seguridad.
                 </p>
               </div>
@@ -1882,7 +1893,7 @@ export default function ConfiguracionPage() {
                   setShowEditModal(false);
                   setEditingEnlace(null);
                 }}
-                style={{ background: 'rgba(255,255,255,0.05)', border: 'none', width: '32px', height: '32px', borderRadius: '50%', color: 'var(--text-secondary)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                style={{ background: 'rgba(255,255,255,0.05)', border: 'none', width: '32px', height: '32px', borderRadius: '50%', color: 'rgba(255, 255, 255, 0.7)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
               >
                 ✕
               </button>
@@ -1894,81 +1905,81 @@ export default function ConfiguracionPage() {
                 
                 {/* Curso (Read Only) */}
                 <div style={{ gridColumn: 'span 2' }}>
-                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: 'var(--text-secondary)', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#ffffff', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                     Curso Aplicable (Protegido 🔒)
                   </label>
                   <input
                     type="text"
                     disabled
                     value={editingEnlace.curso}
-                    style={{ width: '100%', background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border-color)', borderRadius: '10px', padding: '12px', color: 'var(--text-secondary)', fontSize: '14px', fontWeight: '500', cursor: 'not-allowed', outline: 'none' }}
+                    style={{ width: '100%', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255, 255, 255, 0.15)', borderRadius: '10px', padding: '12px', color: 'rgba(255, 255, 255, 0.6)', fontSize: '14px', fontWeight: '500', cursor: 'not-allowed', outline: 'none' }}
                   />
                 </div>
 
                 {/* Costo Inscripción (Read Only) */}
                 <div>
-                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: 'var(--text-secondary)', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#ffffff', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                     Inscripción (Fijo 🔒)
                   </label>
                   <div style={{ position: 'relative' }}>
-                    <DollarSign size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
+                    <DollarSign size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'rgba(255, 255, 255, 0.5)' }} />
                     <input
                       type="text"
                       disabled
                       value={editingEnlace.costoInscripcion}
-                      style={{ width: '100%', background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border-color)', borderRadius: '10px', padding: '12px 12px 12px 32px', color: 'var(--text-secondary)', fontSize: '14px', cursor: 'not-allowed', outline: 'none' }}
+                      style={{ width: '100%', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255, 255, 255, 0.15)', borderRadius: '10px', padding: '12px 12px 12px 32px', color: 'rgba(255, 255, 255, 0.6)', fontSize: '14px', cursor: 'not-allowed', outline: 'none' }}
                     />
                   </div>
                 </div>
 
                 {/* Costo Contado (Read Only) */}
                 <div>
-                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: 'var(--text-secondary)', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#ffffff', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                     Costo Contado (Fijo 🔒)
                   </label>
                   <div style={{ position: 'relative' }}>
-                    <DollarSign size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
+                    <DollarSign size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'rgba(255, 255, 255, 0.5)' }} />
                     <input
                       type="text"
                       disabled
                       value={editingEnlace.costoContado}
-                      style={{ width: '100%', background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border-color)', borderRadius: '10px', padding: '12px 12px 12px 32px', color: 'var(--text-secondary)', fontSize: '14px', cursor: 'not-allowed', outline: 'none' }}
+                      style={{ width: '100%', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255, 255, 255, 0.15)', borderRadius: '10px', padding: '12px 12px 12px 32px', color: 'rgba(255, 255, 255, 0.6)', fontSize: '14px', cursor: 'not-allowed', outline: 'none' }}
                     />
                   </div>
                 </div>
 
                 {/* Costo Pagos (Read Only) */}
                 <div>
-                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: 'var(--text-secondary)', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#ffffff', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                     Total Financiado (Fijo 🔒)
                   </label>
                   <div style={{ position: 'relative' }}>
-                    <DollarSign size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
+                    <DollarSign size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'rgba(255, 255, 255, 0.5)' }} />
                     <input
                       type="text"
                       disabled
                       value={editingEnlace.costoPagos}
-                      style={{ width: '100%', background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border-color)', borderRadius: '10px', padding: '12px 12px 12px 32px', color: 'var(--text-secondary)', fontSize: '14px', cursor: 'not-allowed', outline: 'none' }}
+                      style={{ width: '100%', background: 'rgba(255, 255, 255, 0.02)', border: '1px solid rgba(255, 255, 255, 0.15)', borderRadius: '10px', padding: '12px 12px 12px 32px', color: 'rgba(255, 255, 255, 0.6)', fontSize: '14px', cursor: 'not-allowed', outline: 'none' }}
                     />
                   </div>
                 </div>
 
                 {/* Número de Mensualidades (Read Only) */}
                 <div>
-                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: 'var(--text-secondary)', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#ffffff', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                     Mensualidades (Fijo 🔒)
                   </label>
                   <input
                     type="text"
                     disabled
                     value={editingEnlace.planPagosTotales}
-                    style={{ width: '100%', background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border-color)', borderRadius: '10px', padding: '12px', color: 'var(--text-secondary)', fontSize: '14px', cursor: 'not-allowed', outline: 'none' }}
+                    style={{ width: '100%', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255, 255, 255, 0.15)', borderRadius: '10px', padding: '12px', color: 'rgba(255, 255, 255, 0.6)', fontSize: '14px', cursor: 'not-allowed', outline: 'none' }}
                   />
                 </div>
 
                 {/* Usos Máximos (Editable) */}
                 <div>
-                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: 'var(--text-secondary)', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#ffffff', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                     Límite de Usos (Cupos) *
                   </label>
                   <input
@@ -1977,23 +1988,24 @@ export default function ConfiguracionPage() {
                     min={editingEnlace.usosActuales}
                     value={editingEnlace.usosMaximos}
                     onChange={e => setEditingEnlace({ ...editingEnlace, usosMaximos: Number(e.target.value) })}
-                    style={{ width: '100%', background: 'rgba(0,0,0,0.3)', border: '1px solid var(--border-color)', borderRadius: '10px', padding: '12px', color: '#fff', fontSize: '14px', outline: 'none' }}
+                    placeholder="0"
+                    style={{ width: '100%', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255, 255, 255, 0.15)', borderRadius: '10px', padding: '12px', color: '#fff', fontSize: '14px', outline: 'none' }}
                   />
-                  <p style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                  <p style={{ fontSize: '11px', color: 'rgba(255, 255, 255, 0.6)', marginTop: '4px' }}>
                     Usos actuales: {editingEnlace.usosActuales} cupo(s).
                   </p>
                 </div>
 
                 {/* Fecha Expiración (Editable) */}
                 <div>
-                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: 'var(--text-secondary)', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#ffffff', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                     Fecha de Expiración
                   </label>
                   <input
                     type="date"
                     value={editingEnlace.expiraEn}
                     onChange={e => setEditingEnlace({ ...editingEnlace, expiraEn: e.target.value })}
-                    style={{ width: '100%', background: 'rgba(0,0,0,0.3)', border: '1px solid var(--border-color)', borderRadius: '10px', padding: '12px', color: '#fff', fontSize: '14px', outline: 'none' }}
+                    style={{ width: '100%', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255, 255, 255, 0.15)', borderRadius: '10px', padding: '12px', color: '#fff', fontSize: '14px', outline: 'none', colorScheme: 'dark' }}
                   />
                 </div>
               </div>
@@ -2001,7 +2013,7 @@ export default function ConfiguracionPage() {
               {/* Security info box */}
               <div style={{ display: 'flex', gap: '10px', background: 'rgba(59, 130, 246, 0.08)', border: '1px solid rgba(59, 130, 246, 0.15)', borderRadius: '12px', padding: '14px', marginBottom: '24px' }}>
                 <AlertCircle size={18} style={{ color: 'var(--brand-blue)', flexShrink: 0, marginTop: '2px' }} />
-                <p style={{ fontSize: '12px', color: 'var(--text-secondary)', lineHeight: '1.5' }}>
+                <p style={{ fontSize: '12px', color: 'rgba(255, 255, 255, 0.7)', lineHeight: '1.5' }}>
                   <strong>Edición de Costos:</strong> Por seguridad de los aspirantes y auditoría escolar, solo puedes expandir la vigencia o aumentar los cupos. Si deseas cambiar las tarifas, realiza una nueva asignación de costos.
                 </p>
               </div>
@@ -2015,14 +2027,15 @@ export default function ConfiguracionPage() {
                     setEditingEnlace(null);
                   }}
                   style={{
-                    background: 'rgba(255,255,255,0.05)',
-                    border: '1px solid var(--border-color)',
+                    background: 'rgba(255, 255, 255, 0.1)',
+                    border: '1px solid rgba(255, 255, 255, 0.25)',
                     padding: '12px 24px',
                     borderRadius: '10px',
-                    color: 'var(--text-primary)',
+                    color: '#ffffff',
                     fontSize: '14px',
                     fontWeight: '600',
-                    cursor: 'pointer'
+                    cursor: 'pointer',
+                    transition: 'all 0.2s'
                   }}
                 >
                   Cancelar
@@ -2101,10 +2114,10 @@ export default function ConfiguracionPage() {
               <AlertTriangle size={24} />
             </div>
             <div>
-              <h4 style={{ fontSize: '18px', fontWeight: '700', margin: '0 0 8px 0', color: 'var(--text-primary)' }}>¿Confirmar Eliminación de Asignación de Costos?</h4>
-              <p style={{ fontSize: '14px', color: 'var(--text-secondary)', margin: 0, lineHeight: '1.5' }}>
-                ¿Estás completamente seguro de que deseas eliminar la asignación de costos para <strong>"{deleteEnlaceConfirm.curso}"</strong>?<br/>
-                <span style={{ fontSize: '12px', display: 'block', marginTop: '6px', color: '#ef4444', fontWeight: '600' }}>
+              <h4 style={{ fontSize: '18px', fontWeight: '700', margin: '0 0 8px 0', color: '#fff' }}>¿Confirmar Eliminación de Asignación de Costos?</h4>
+              <p style={{ fontSize: '14px', color: 'rgba(255,255,255,0.65)', margin: 0, lineHeight: '1.5' }}>
+                ¿Estás completamente seguro de que deseas eliminar la asignación de costos para <strong style={{ color: '#fff' }}>"{deleteEnlaceConfirm.curso}"</strong>?<br/>
+                <span style={{ fontSize: '12px', display: 'block', marginTop: '6px', color: '#f87171', fontWeight: '600' }}>
                   Esta acción borrará permanentemente la configuración de tarifas y no se puede deshacer.
                 </span>
               </p>
@@ -2113,13 +2126,13 @@ export default function ConfiguracionPage() {
               <button 
                 type="button" 
                 style={{
-                  background: 'rgba(255,255,255,0.05)',
-                  border: '1px solid var(--border-color)',
+                  background: 'rgba(255,255,255,0.08)',
+                  border: '1px solid rgba(255,255,255,0.15)',
                   borderRadius: '10px',
                   padding: '10px 16px',
                   fontWeight: '600',
                   fontSize: '13px',
-                  color: 'var(--text-primary)',
+                  color: 'rgba(255,255,255,0.75)',
                   cursor: 'pointer',
                   transition: 'all 0.2s'
                 }}

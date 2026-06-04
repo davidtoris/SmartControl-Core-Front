@@ -35,6 +35,13 @@ export interface ExamAttempt {
   auditLog: { timestamp: string; action: string }[];
   integrityScore?: number;
   cheatingCanceled?: boolean;
+  questionsSnapshot?: {
+    subject: string;
+    question: string;
+    options: Record<string, string>;
+    correct: string;
+    explanation?: string;
+  }[];
 }
 
 export interface Student {
@@ -115,12 +122,32 @@ export interface Transaction {
 
 export interface StudentMessage {
   id: string;
-  studentId: number | string;
-  sender: string;
   title: string;
   content: string;
-  sentAt: string;
-  readAt?: string;
+  sender: string;
+  targetType?: string; // 'ALL' | 'GRUPO' | 'INDIVIDUAL'
+  targetGroup?: string | null;
+  studentId?: string | number | null;
+  createdAt?: string;
+  sentAt?: string; // legacy support
+  read?: boolean;
+  readAt?: string | null;
+  lecturas?: {
+    id: string;
+    readAt: string;
+    alumno: {
+      id: string;
+      nombre: string;
+      avatar: string;
+      curso: string;
+    };
+  }[];
+  student?: {
+    id: string;
+    nombre: string;
+  } | null;
+  totalTargeted?: number;
+  readCount?: number;
 }
 
 export interface EnlaceInscripcion {
@@ -157,6 +184,17 @@ export interface Servicio {
   createdAt: string;
   updatedAt: string;
   empresaId: string;
+}
+
+export interface Usuario {
+  id: string;
+  nombre: string;
+  email: string;
+  rol: string;
+  roles: string[];
+  permisos: string[];
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface CRMFollowUpLog {
@@ -218,7 +256,15 @@ interface AppState {
   
   // Mensajes de Alumnos
   studentMessages: StudentMessage[];
-  markMessageAsRead: (messageId: string) => void;
+  markMessageAsRead: (messageId: string) => Promise<void>;
+
+  // Gestión de Mensajes Internos
+  mensajesAdmin: StudentMessage[];
+  mensajesEstudiante: StudentMessage[];
+  fetchMensajesAdmin: () => Promise<void>;
+  createMensaje: (data: Partial<StudentMessage>) => Promise<StudentMessage>;
+  fetchStudentMessages: (studentId: string | number) => Promise<void>;
+  readMensaje: (mensajeId: string, studentId: string | number) => Promise<void>;
   
   // Categorías y Subcategorías
   categories: Category[];
@@ -247,6 +293,13 @@ interface AppState {
   updateServicio: (id: string, fields: Partial<Servicio>) => Promise<void>;
   toggleServicio: (id: string, activo: boolean) => Promise<void>;
   deleteServicio: (id: string) => Promise<void>;
+
+  // Gestión de Usuarios
+  usuarios: Usuario[];
+  fetchUsuarios: () => Promise<void>;
+  createUsuario: (usuario: Partial<Usuario> & { password?: string }) => Promise<Usuario>;
+  updateUsuario: (id: string, fields: Partial<Usuario> & { password?: string }) => Promise<void>;
+  deleteUsuario: (id: string) => Promise<void>;
 
   // CRM Prospectos
   prospects: CRMProspect[];
@@ -734,6 +787,8 @@ export const useAppStore = create<AppState>((set) => {
     transactions: [],
     categories: [], // Cargados dinámicamente del backend
     studentMessages: initialMessages,
+    mensajesAdmin: [],
+    mensajesEstudiante: [],
     questions: finalQuestions,
     exams: finalExams,
     prospects: finalProspects,
@@ -1094,20 +1149,80 @@ export const useAppStore = create<AppState>((set) => {
     }
   },
 
-  markMessageAsRead: (messageId) => set((state) => {
-    const updatedMessages = state.studentMessages.map(msg => {
-      if (msg.id === messageId && !msg.readAt) {
-        const currentDate = '27 May 2026';
-        const currentTime = new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: false });
-        return {
-          ...msg,
-          readAt: `${currentDate} a las ${currentTime}`
+  markMessageAsRead: async (messageId) => {
+    const state = useAppStore.getState();
+    const msg = state.studentMessages.find(m => m.id === messageId);
+    if (msg && msg.studentId) {
+      await state.readMensaje(messageId, msg.studentId);
+    }
+  },
+
+  // Gestión de Mensajes Internos
+  fetchMensajesAdmin: async () => {
+    try {
+      const response = await apiClient.get('/mensajes');
+      set({ mensajesAdmin: response.data });
+    } catch (error) {
+      console.error('Error al cargar mensajes administrativos:', error);
+    }
+  },
+  createMensaje: async (data) => {
+    try {
+      const response = await apiClient.post('/mensajes', data);
+      const nuevo = response.data;
+      set((state) => ({ mensajesAdmin: [nuevo, ...state.mensajesAdmin] }));
+      return nuevo;
+    } catch (error) {
+      console.error('Error al crear mensaje:', error);
+      throw error;
+    }
+  },
+  fetchStudentMessages: async (studentId) => {
+    try {
+      const response = await apiClient.get(`/mensajes/alumno/${studentId}`);
+      // Mapear al arreglo compatible studentMessages para retrocompatibilidad
+      const mapped = response.data.map((m: any) => ({
+        id: m.id,
+        studentId: studentId,
+        sender: m.sender,
+        title: m.title,
+        content: m.content,
+        sentAt: new Date(m.createdAt).toLocaleString('es-MX', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
+        readAt: m.readAt ? new Date(m.readAt).toLocaleString('es-MX', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : undefined,
+        read: m.read
+      }));
+
+      set({ 
+        mensajesEstudiante: response.data,
+        studentMessages: mapped
+      });
+    } catch (error) {
+      console.error('Error al cargar mensajes del alumno:', error);
+    }
+  },
+  readMensaje: async (mensajeId, studentId) => {
+    try {
+      await apiClient.post(`/mensajes/${mensajeId}/read`, { alumnoId: studentId });
+      
+      // Actualizar localmente el estado
+      set((state) => {
+        const updatedEstudiante = state.mensajesEstudiante.map(m => 
+          m.id === mensajeId ? { ...m, read: true, readAt: new Date().toISOString() } : m
+        );
+        
+        const updatedLegacy = state.studentMessages.map(m => 
+          m.id === mensajeId ? { ...m, readAt: new Date().toLocaleString('es-MX') } : m
+        );
+
+        return { 
+          mensajesEstudiante: updatedEstudiante,
+          studentMessages: updatedLegacy
         };
-      }
-      return msg;
-    });
-    return { studentMessages: updatedMessages };
-  }),
+      });
+    } catch (error) {
+      console.error('Error al registrar lectura de mensaje:', error);
+    }
+  },
 
   // Enlaces de Inscripción
   enlacesInscripcion: [],
@@ -1242,6 +1357,51 @@ export const useAppStore = create<AppState>((set) => {
       }));
     } catch (error) {
       console.error('Error al eliminar servicio:', error);
+      throw error;
+    }
+  },
+
+  // Gestión de Usuarios
+  usuarios: [],
+  fetchUsuarios: async () => {
+    try {
+      const response = await apiClient.get('/usuarios');
+      set({ usuarios: response.data });
+    } catch (error) {
+      console.error('Error al cargar usuarios:', error);
+    }
+  },
+  createUsuario: async (fields) => {
+    try {
+      const response = await apiClient.post('/usuarios', fields);
+      const nuevo = response.data;
+      set((state) => ({ usuarios: [nuevo, ...state.usuarios] }));
+      return nuevo;
+    } catch (error) {
+      console.error('Error al crear usuario:', error);
+      throw error;
+    }
+  },
+  updateUsuario: async (id, fields) => {
+    try {
+      const response = await apiClient.put(`/usuarios/${id}`, fields);
+      const updated = response.data;
+      set((state) => ({
+        usuarios: state.usuarios.map((u) => (u.id === id ? updated : u))
+      }));
+    } catch (error) {
+      console.error('Error al actualizar usuario:', error);
+      throw error;
+    }
+  },
+  deleteUsuario: async (id) => {
+    try {
+      await apiClient.delete(`/usuarios/${id}`);
+      set((state) => ({
+        usuarios: state.usuarios.filter((u) => u.id !== id)
+      }));
+    } catch (error) {
+      console.error('Error al eliminar usuario:', error);
       throw error;
     }
   },

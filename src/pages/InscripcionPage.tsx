@@ -157,7 +157,7 @@ export default function InscripcionPage() {
     : (enlaceData ? enlaceData.planPagosTotales : (paramPlazos ? parseInt(paramPlazos) : selectedConfig.duracion));
 
   const costoMensualidad = costoTotal / mensualidadesDiferidas;
-  const pagoInicial = tipoPago === 'Contado' ? costoTotal : costoMensualidad;
+  const pagoInicial = 0;
 
   // Variables estáticas del plan financiado para visualización del botón (independientes del tipoPago seleccionado)
   const plazosFinanciados = enlaceData 
@@ -335,7 +335,7 @@ export default function InscripcionPage() {
         totalCost: costoTotal,
         amountPaid: pagoInicial,
         costoInscripcion: costoInscripcionOverride,
-        planPagosRealizados: tipoPago === 'Contado' ? 1 : 1, // El pago inicial cuenta como cuota 1
+        planPagosRealizados: 0, // No se ha hecho el primer pago aún
         planPagosTotales: mensualidadesDiferidas
       },
       documents: requiredDocs.map(docName => ({

@@ -7,15 +7,23 @@ import {
   Sun, Moon, Download
 } from 'lucide-react';
 import { useAppStore } from '../store/useAppStore';
-import type { Student } from '../store/useAppStore';
+import type { Student, ExamAttempt } from '../store/useAppStore';
 import {
   ResponsiveContainer, AreaChart, Area, CartesianGrid, XAxis, YAxis, Tooltip, ReferenceLine
 } from 'recharts';
 
 export default function EstudiantePortalPage() {
   const navigate = useNavigate();
-  const { students, studentMessages, markMessageAsRead, servicios, fetchStudents, fetchServicios } = useAppStore();
-  
+  const { 
+    students, 
+    studentMessages, 
+    markMessageAsRead, 
+    servicios, 
+    fetchStudents, 
+    fetchServicios,
+    fetchStudentMessages 
+  } = useAppStore();
+
   useEffect(() => {
     if (students.length === 0) {
       fetchStudents();
@@ -24,6 +32,12 @@ export default function EstudiantePortalPage() {
       fetchServicios();
     }
   }, [students.length, servicios.length, fetchStudents, fetchServicios]);
+
+  useEffect(() => {
+    if (activeStudentId) {
+      fetchStudentMessages(activeStudentId);
+    }
+  }, [activeStudentId, fetchStudentMessages]);
 
   const [activeStudentId, setActiveStudentId] = useState<string | number | null>(() => {
     const searchParams = new URLSearchParams(window.location.search);
@@ -53,6 +67,8 @@ export default function EstudiantePortalPage() {
 
   // Modal para ver los intentos registrados
   const [showAttemptsModal, setShowAttemptsModal] = useState<boolean>(false);
+  // Intento seleccionado para ver el desglose completo
+  const [reviewAttempt, setReviewAttempt] = useState<ExamAttempt | null>(null);
 
 
   // Alumno logueado actualmente
@@ -86,24 +102,15 @@ export default function EstudiantePortalPage() {
   };
 
   const getPerformanceData = (student: Student) => {
-    const scaleMax = student.curso?.includes('COMIPEMS') ? 128 : 120;
-
     if (!student.examAttempts || student.examAttempts.length === 0) {
-      return [
-        { name: 'Diag.', aciertos: Math.round(scaleMax * 0.45) },
-        { name: 'Sim. 1', aciertos: Math.round(scaleMax * 0.62) },
-        { name: 'Sim. 2', aciertos: Math.round(scaleMax * 0.78) }
-      ];
+      return [];
     }
 
-    return student.examAttempts.map((attempt, index) => {
-      const ratio = attempt.max > 0 ? attempt.score / attempt.max : 0;
-      return {
-        name: `Int. ${index + 1}`,
-        aciertos: Math.round(ratio * scaleMax),
-        max: scaleMax
-      };
-    });
+    return student.examAttempts.map((attempt, index) => ({
+      name: `Int. ${index + 1}`,
+      aciertos: attempt.cheatingCanceled ? 0 : attempt.score,
+      maxPosible: attempt.max
+    }));
   };
 
   return (
@@ -335,7 +342,7 @@ export default function EstudiantePortalPage() {
                 {activeStudent.avatar || activeStudent.name.charAt(0)}
               </div>
               <div>
-                <h2 className="portal-header-title">
+                <h2 className="portal-header-title text-white">
                   Bienvenido, {activeStudent.name}
                 </h2>
                 <span className="portal-header-subtitle">
@@ -555,7 +562,7 @@ export default function EstudiantePortalPage() {
                 </h3>
 
                 {(() => {
-                  const matchingServicio = servicios.find(s => 
+                  const matchingServicio = servicios.find(s =>
                     s.nombre.toLowerCase().trim() === activeStudent.curso.toLowerCase().trim()
                   );
                   const materiales = matchingServicio?.materiales || [];
@@ -736,11 +743,39 @@ export default function EstudiantePortalPage() {
 
                 <div style={{ width: '100%', height: '300px', margin: '10px 0' }}>
                   {(() => {
-                    const scaleMax = activeStudent.curso?.includes('COMIPEMS') ? 128 : 120;
-                    const targetScore = activeStudent.curso?.includes('COMIPEMS') ? 110 : 104;
+                    const performanceData = getPerformanceData(activeStudent);
+
+                    if (performanceData.length === 0) {
+                      return (
+                        <div style={{
+                          width: '100%',
+                          height: '100%',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '12px',
+                          background: 'rgba(255,255,255,0.01)',
+                          border: '1.5px dashed rgba(255,255,255,0.06)',
+                          borderRadius: '16px',
+                          boxSizing: 'border-box'
+                        }}>
+                          <TrendingUp size={32} color="rgba(255,255,255,0.15)" />
+                          <div style={{ textAlign: 'center' }}>
+                            <span style={{ display: 'block', fontSize: '14px', fontWeight: '700', color: 'var(--text-primary)', opacity: 0.5 }}>Sin datos académicos aún</span>
+                            <span style={{ display: 'block', fontSize: '12px', color: 'var(--text-secondary)', opacity: 0.5, marginTop: '4px' }}>Realiza tu primer examen simulacro para ver tu evolución aquí.</span>
+                          </div>
+                        </div>
+                      );
+                    }
+
+                    // Calcular máximo real del eje Y
+                    const maxPosible = Math.max(...(activeStudent.examAttempts || []).map(a => a.max));
+                    const yDomain: [number, number] = [0, maxPosible > 0 ? maxPosible : 10];
+
                     return (
                       <ResponsiveContainer>
-                        <AreaChart data={getPerformanceData(activeStudent)} margin={{ top: 15, right: 10, left: -25, bottom: 0 }}>
+                        <AreaChart data={performanceData} margin={{ top: 15, right: 10, left: -25, bottom: 0 }}>
                           <defs>
                             <linearGradient id="colorAciertos" x1="0" y1="0" x2="0" y2="1">
                               <stop offset="5%" stopColor="var(--brand-blue)" stopOpacity={0.25} />
@@ -749,25 +784,15 @@ export default function EstudiantePortalPage() {
                           </defs>
                           <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(15, 56, 105, 0.06)" />
                           <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#475569' }} />
-                          <YAxis domain={[0, scaleMax]} axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#475569' }} />
+                          <YAxis domain={yDomain} axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#475569' }} />
                           <Tooltip
                             contentStyle={{ borderRadius: '12px', border: '1px solid rgba(15,56,105,0.1)', background: 'var(--bg-card)', color: 'var(--text-primary)', fontFamily: 'Outfit' }}
-                            formatter={(value: any) => [`${value} aciertos`, 'Puntaje Normalizado']}
+                            formatter={(value: any, _name: any, props: any) => [
+                              `${value} de ${props?.payload?.maxPosible ?? '?'} aciertos`,
+                              'Puntaje'
+                            ]}
                           />
-                          <ReferenceLine
-                            y={targetScore}
-                            stroke="#e5a93b"
-                            strokeDasharray="4 4"
-                            label={{
-                              value: `Meta UNAM/COMIPEMS: ${targetScore}`,
-                              position: 'top',
-                              fill: '#e5a93b',
-                              fontSize: 10,
-                              fontWeight: 700,
-                              fontFamily: 'Outfit'
-                            }}
-                          />
-                          <Area type="monotone" dataKey="aciertos" stroke="var(--brand-blue)" strokeWidth={2.5} fillOpacity={1} fill="url(#colorAciertos)" />
+                          <Area type="monotone" dataKey="aciertos" stroke="var(--brand-blue)" strokeWidth={2.5} fillOpacity={1} fill="url(#colorAciertos)" dot={{ r: 4, fill: 'var(--brand-blue)', strokeWidth: 2, stroke: '#fff' }} activeDot={{ r: 6 }} />
                         </AreaChart>
                       </ResponsiveContainer>
                     );
@@ -988,6 +1013,7 @@ export default function EstudiantePortalPage() {
                   </button>
                 </div>
 
+
                 {/* Contenido / Lista */}
                 <div style={{
                   padding: '24px',
@@ -1000,35 +1026,66 @@ export default function EstudiantePortalPage() {
                   {activeStudent.examAttempts && activeStudent.examAttempts.length > 0 ? (
                     activeStudent.examAttempts.map((attempt, index) => {
                       const percentage = Math.round((attempt.score / attempt.max) * 100);
+                      const scoreColor = percentage >= 80 ? '#34d399' : percentage >= 60 ? '#facc15' : '#f87171';
+                      const dur = attempt.durationSeconds > 0
+                        ? `${Math.floor(attempt.durationSeconds / 60)}m ${attempt.durationSeconds % 60}s`
+                        : 'N/A';
                       return (
                         <div
                           key={attempt.id}
                           className="inner-accent-card"
                           style={{
                             background: 'rgba(255, 255, 255, 0.01)',
-                            border: '1px solid rgba(255, 255, 255, 0.03)',
-                            borderRadius: '12px',
-                            padding: '12px 16px',
+                            border: '1px solid rgba(255, 255, 255, 0.05)',
+                            borderRadius: '14px',
+                            padding: '14px 16px',
                             display: 'flex',
-                            justifyContent: 'space-between',
-                            alignItems: 'center'
+                            flexDirection: 'column',
+                            gap: '10px'
                           }}
                         >
-                          <div>
-                            <span style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#ffffff' }}>
-                              {attempt.examName} <span style={{ color: '#9ca3af', fontWeight: '400', fontSize: '11px' }}>(Int. {index + 1})</span>
-                            </span>
-                            <span style={{ fontSize: '11px', color: '#9ca3af', display: 'flex', alignItems: 'center', gap: '6px', marginTop: '3px' }}>
-                              <Calendar size={11} /> {new Date(attempt.endedAt).toLocaleDateString('es-MX', { day: '2-digit', month: 'short' })} • <Clock size={11} /> {Math.floor(attempt.durationSeconds / 60)}m {attempt.durationSeconds % 60}s
-                            </span>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                            <div>
+                              <span style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#ffffff' }}>
+                                {attempt.examName} <span style={{ color: '#9ca3af', fontWeight: '400', fontSize: '11px' }}>(Int. {index + 1})</span>
+                              </span>
+                              <span style={{ fontSize: '11px', color: '#9ca3af', display: 'flex', alignItems: 'center', gap: '6px', marginTop: '3px' }}>
+                                <Calendar size={11} /> {new Date(attempt.endedAt).toLocaleDateString('es-MX', { day: '2-digit', month: 'short' })} • <Clock size={11} /> {dur}
+                              </span>
+                            </div>
+                            <div style={{ textAlign: 'right' }}>
+                              <span style={{ display: 'block', fontSize: '16px', fontWeight: '800', color: scoreColor }}>
+                                {attempt.cheatingCanceled ? '—' : `${attempt.score}/${attempt.max}`}
+                              </span>
+                              <span style={{ fontSize: '10px', color: '#9ca3af' }}>{attempt.cheatingCanceled ? 'Anulado' : `${percentage}% de aciertos`}</span>
+                            </div>
                           </div>
 
-                          <div style={{ textAlign: 'right' }}>
-                            <span style={{ display: 'block', fontSize: '14px', fontWeight: '700', color: percentage >= 80 ? '#34d399' : percentage >= 60 ? '#facc15' : '#f87171' }}>
-                              {attempt.score}/{attempt.max}
-                            </span>
-                            <span style={{ fontSize: '10px', color: '#9ca3af' }}>{percentage}% de aciertos</span>
-                          </div>
+                          {/* Botón Ver desglose */}
+                          <button
+                            onClick={() => {
+                              setShowAttemptsModal(false);
+                              setReviewAttempt(attempt);
+                            }}
+                            style={{
+                              width: '100%',
+                              background: 'rgba(15, 56, 105, 0.12)',
+                              border: '1px solid rgba(15, 56, 105, 0.25)',
+                              color: 'var(--brand-blue, #2563eb)',
+                              borderRadius: '8px',
+                              padding: '8px 14px',
+                              fontSize: '12px',
+                              fontWeight: '700',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              gap: '6px',
+                              transition: 'all 0.2s'
+                            }}
+                          >
+                            <Eye size={13} /> Ver desglose completo de respuestas
+                          </button>
                         </div>
                       );
                     })
@@ -1047,6 +1104,164 @@ export default function EstudiantePortalPage() {
               </div>
             </div>
           )}
+
+          {/* ===== MODAL DESGLOSE COMPLETO DE RESPUESTAS ===== */}
+          {reviewAttempt && (
+            <div
+              onClick={() => setReviewAttempt(null)}
+              style={{
+                position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+                background: 'rgba(0, 0, 0, 0.7)',
+                backdropFilter: 'blur(12px)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                zIndex: 1100, padding: '20px', boxSizing: 'border-box',
+                animation: 'fadeIn 0.2s ease-out'
+              }}
+            >
+              <div
+                onClick={(e) => e.stopPropagation()}
+                className="glass-card animate-modal"
+                style={{
+                  width: '100%', maxWidth: '680px', maxHeight: '88vh',
+                  background: 'var(--card-bg)', border: '1px solid var(--card-border)',
+                  borderRadius: '24px', boxShadow: 'var(--card-shadow)',
+                  display: 'flex', flexDirection: 'column',
+                  animation: 'slideUp 0.25s ease-out', overflow: 'hidden'
+                }}
+              >
+                {/* Header del Modal Desglose */}
+                <div style={{
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                  padding: '20px 24px', borderBottom: '1px solid var(--inner-card-border)',
+                  background: 'rgba(255,255,255,0.015)', flexShrink: 0
+                }}>
+                  <div>
+                    <h3 style={{ fontSize: '17px', fontWeight: '800', margin: 0, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <Clipboard size={19} color="#f59e0b" /> Desglose de Respuestas
+                    </h3>
+                    <span style={{ fontSize: '12px', color: '#9ca3af', marginTop: '3px', display: 'block' }}>
+                      {reviewAttempt.examName} — {new Date(reviewAttempt.endedAt).toLocaleDateString('es-MX', { day: '2-digit', month: 'long', year: 'numeric' })}
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    {/* Mini resumen */}
+                    <div style={{ textAlign: 'right' }}>
+                      <span style={{ display: 'block', fontSize: '18px', fontWeight: '800', color: reviewAttempt.cheatingCanceled ? '#f87171' : (reviewAttempt.score / reviewAttempt.max >= 0.8 ? '#34d399' : '#facc15') }}>
+                        {reviewAttempt.cheatingCanceled ? 'Anulado' : `${reviewAttempt.score} / ${reviewAttempt.max}`}
+                      </span>
+                      <span style={{ fontSize: '10px', color: '#9ca3af' }}>
+                        {reviewAttempt.cheatingCanceled ? '0%' : `${Math.round((reviewAttempt.score / reviewAttempt.max) * 100)}% de aciertos`}
+                      </span>
+                    </div>
+                    <button
+                      onClick={() => setReviewAttempt(null)}
+                      style={{ background: 'transparent', border: 'none', color: 'var(--text-primary)', fontSize: '20px', cursor: 'pointer', padding: '4px', display: 'flex', alignItems: 'center', lineHeight: 1 }}
+                      onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.2)'}
+                      onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                    >✕</button>
+                  </div>
+                </div>
+
+                {/* Contenido scrollable */}
+                <div style={{ overflowY: 'auto', flex: 1, padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  {reviewAttempt.questionsSnapshot && reviewAttempt.questionsSnapshot.length > 0 ? (
+                    reviewAttempt.questionsSnapshot.map((q, idx) => {
+                      const studentAnswer = reviewAttempt.answers[idx];
+                      const isCorrect = studentAnswer === q.correct;
+                      const isUnanswered = !studentAnswer;
+
+                      return (
+                        <div
+                          key={idx}
+                          style={{
+                            background: isCorrect ? 'rgba(16, 185, 129, 0.04)' : isUnanswered ? 'rgba(255,255,255,0.01)' : 'rgba(239, 68, 68, 0.04)',
+                            border: `1px solid ${isCorrect ? 'rgba(16,185,129,0.2)' : isUnanswered ? 'rgba(255,255,255,0.06)' : 'rgba(239,68,68,0.2)'}`,
+                            borderRadius: '12px',
+                            padding: '14px 16px',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '8px'
+                          }}
+                        >
+                          {/* Cabecera: número, materia, resultado */}
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <span style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-primary)', opacity: 0.5 }}>#{idx + 1}</span>
+                              <span style={{ fontSize: '10px', background: 'rgba(255,255,255,0.06)', padding: '2px 8px', borderRadius: '100px', color: '#9ca3af', fontWeight: '600' }}>
+                                {q.subject}
+                              </span>
+                            </div>
+                            <span style={{
+                              fontSize: '11px', fontWeight: '700', padding: '2px 10px', borderRadius: '100px',
+                              background: isCorrect ? 'rgba(16,185,129,0.12)' : isUnanswered ? 'rgba(255,255,255,0.06)' : 'rgba(239,68,68,0.12)',
+                              color: isCorrect ? '#34d399' : isUnanswered ? '#9ca3af' : '#f87171'
+                            }}>
+                              {isCorrect ? '✓ Correcto' : isUnanswered ? '— Sin responder' : '✗ Incorrecto'}
+                            </span>
+                          </div>
+
+                          {/* Texto de la pregunta */}
+                          <p style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-primary)', margin: 0, lineHeight: 1.5 }}>
+                            {q.question}
+                          </p>
+
+                          {/* Opciones */}
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
+                            {Object.entries(q.options).map(([key, val]) => {
+                              const isKeyCorrect = key === q.correct;
+                              const isKeyStudent = key === studentAnswer;
+                              let bg = 'rgba(255,255,255,0.02)';
+                              let border = 'rgba(255,255,255,0.06)';
+                              let color = '#9ca3af';
+                              if (isKeyCorrect) { bg = 'rgba(16,185,129,0.1)'; border = '#34d399'; color = '#34d399'; }
+                              else if (isKeyStudent && !isCorrect) { bg = 'rgba(239,68,68,0.1)'; border = '#f87171'; color = '#f87171'; }
+
+                              return (
+                                <div key={key} style={{ background: bg, border: `1px solid ${border}`, borderRadius: '8px', padding: '7px 10px', fontSize: '12px', color, display: 'flex', alignItems: 'flex-start', gap: '6px' }}>
+                                  <span style={{ fontWeight: '800', flexShrink: 0 }}>{key}.</span>
+                                  <span style={{ lineHeight: 1.4 }}>
+                                    {typeof val === 'string' && val.startsWith('/') ? <em style={{ color: '#9ca3af' }}>[imagen]</em> : val}
+                                    {isKeyCorrect && <span style={{ marginLeft: '4px' }}>✓</span>}
+                                    {isKeyStudent && !isCorrect && <span style={{ marginLeft: '4px' }}>← tu respuesta</span>}
+                                  </span>
+                                </div>
+                              );
+                            })}
+                          </div>
+
+                          {/* Explicación */}
+                          {q.explanation && (
+                            <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.04)', borderRadius: '8px', padding: '8px 12px', fontSize: '11.5px', color: '#9ca3af', lineHeight: 1.5 }}>
+                              <strong style={{ color: 'var(--text-primary)', opacity: 0.7 }}>Explicación: </strong>{q.explanation}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })
+                  ) : (
+                    <div style={{ padding: '40px 24px', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
+                      <Clipboard size={32} color="rgba(255,255,255,0.15)" />
+                      <span style={{ fontSize: '14px', fontWeight: '700', color: 'var(--text-primary)', opacity: 0.5 }}>Desglose no disponible</span>
+                      <p style={{ fontSize: '12px', color: '#9ca3af', margin: 0, lineHeight: 1.5 }}>
+                        Este intento fue realizado antes de que se habilitara el registro detallado de respuestas. Los próximos exámenes que realices guardarán el desglose completo automáticamente.
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Footer — botón para volver a la lista */}
+                <div style={{ padding: '16px 24px', borderTop: '1px solid var(--inner-card-border)', flexShrink: 0, background: 'rgba(255,255,255,0.01)' }}>
+                  <button
+                    onClick={() => { setReviewAttempt(null); setShowAttemptsModal(true); }}
+                    style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.1)', color: 'var(--text-primary)', borderRadius: '10px', padding: '10px 18px', fontSize: '13px', fontWeight: '700', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
+                  >
+                    ← Volver a todos los intentos
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
 
           {/* Footer del Portal para anclar y balancear el espacio vertical */}
           <div style={{
@@ -1329,7 +1544,7 @@ function styleTag() {
         text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
       }
       .portal-header-subtitle {
-        color: rgba(255, 255, 255, 0.75) !important;
+        color: #ffffff !important;
         font-size: 13px;
         display: flex;
         align-items: center;
