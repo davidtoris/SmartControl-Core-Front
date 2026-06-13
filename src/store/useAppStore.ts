@@ -175,7 +175,9 @@ export interface Servicio {
   descripcion?: string | null;
   duracionMeses: number;
   documentosRequeridos: string[];
+  documentosConfig?: { nombre: string; caracteristicas: string }[];
   materiales?: string[];
+  materialesConfig?: { nombre: string; caracteristicas: string }[];
   proceso?: string | null;
   tieneCertificado: boolean;
   requiereEvidencia: boolean;

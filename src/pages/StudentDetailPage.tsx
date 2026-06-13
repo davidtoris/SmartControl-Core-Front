@@ -2,16 +2,35 @@ import { useState, useMemo, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { 
   ChevronLeft, BookOpen, Phone, Calendar, Wallet, FileText, 
-  AlertTriangle, CheckCircle2, TrendingUp, Download, UserCheck, Target,
+  AlertTriangle, CheckCircle2, TrendingUp, Download, UserCheck,
   Clock, Award, Star, Plus, AlertCircle, UploadCloud, Pencil, Loader2
 } from 'lucide-react';
 import { AreaChart, Area, CartesianGrid, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { useAppStore } from '../store/useAppStore';
 
+const formatAttendanceDate = (dateStr: string) => {
+  if (!dateStr) return '';
+  const parts = dateStr.split('-');
+  if (parts.length === 3) {
+    const year = parseInt(parts[0], 10);
+    const month = parseInt(parts[1], 10) - 1; // 0-indexed month
+    const day = parseInt(parts[2], 10);
+    const date = new Date(year, month, day);
+    const formatted = date.toLocaleDateString('es-MX', {
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric'
+    });
+    return formatted.charAt(0).toUpperCase() + formatted.slice(1);
+  }
+  return dateStr;
+};
+
 export default function StudentDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { students, transactions, questions } = useAppStore();
+  const { students, transactions, questions, servicios, fetchServicios } = useAppStore();
   const [studentTab, setStudentTab] = useState('Resumen');
   const [selectedAttemptAudit, setSelectedAttemptAudit] = useState<any | null>(null);
   const [expandedQuestionIndex, setExpandedQuestionIndex] = useState<number | null>(null);
@@ -36,6 +55,10 @@ export default function StudentDetailPage() {
       return () => clearTimeout(timer);
     }
   }, [feedback.message]);
+
+  useEffect(() => {
+    fetchServicios();
+  }, [fetchServicios]);
 
   const [uploadingDocs, setUploadingDocs] = useState<Record<string, boolean>>({});
 
@@ -225,10 +248,17 @@ export default function StudentDetailPage() {
                             : '#ca8a04'
                   }}
                 >
-                  <option value="Pendiente Docs">Pendiente Docs</option>
-                  <option value="Activo - Al Corriente">Activo - Al Corriente</option>
-                  <option value="Activo - Con Adeudos">Activo - Con Adeudos</option>
-                  <option value="Inactivo">Inactivo</option>
+                  {selectedStudent.status === 'Inactivo' ? (
+                    <>
+                      <option value="Inactivo">Inactivo</option>
+                      <option value="Activo">Activar Alumno (Automático)</option>
+                    </>
+                  ) : (
+                    <>
+                      <option value={selectedStudent.status}>{selectedStudent.status} (Automático)</option>
+                      <option value="Inactivo">Marcar como Inactivo</option>
+                    </>
+                  )}
                 </select>
                 {isUpdatingStatus && (
                   <Loader2 size={12} style={{ color: 'var(--brand-blue)', animation: 'spin 1s linear infinite' }} />
@@ -505,9 +535,25 @@ export default function StudentDetailPage() {
                 <tbody>
                   {selectedStudent.documents?.map((doc: any, i: number) => {
                     const isUploading = uploadingDocs[doc.name] || false;
+                    
+                    // Match student service to look up document characteristics
+                    const studentService = servicios.find((s: any) => 
+                      selectedStudent?.curso?.toLowerCase().includes(s.nombre.toLowerCase()) ||
+                      s.nombre.toLowerCase().includes(selectedStudent?.curso?.replace('Ingreso ', '')?.toLowerCase())
+                    );
+                    const matchedDocConfig = studentService?.documentosConfig?.find((d: any) => d.nombre === doc.name);
+                    const characteristics = matchedDocConfig?.caracteristicas || '';
+
                     return (
                       <tr key={i} style={{ borderBottom: '1px solid var(--border-color)' }}>
-                        <td style={{ padding: '16px 24px', fontSize: '14px', fontWeight: '500', color: 'var(--text-primary)' }}>{doc.name}</td>
+                        <td style={{ padding: '16px 24px', fontSize: '14px', fontWeight: '500', color: 'var(--text-primary)', textAlign: 'left' }}>
+                          <div>{doc.name}</div>
+                          {characteristics && (
+                            <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px', fontWeight: 'normal' }}>
+                              {characteristics}
+                            </div>
+                          )}
+                        </td>
                         <td style={{ padding: '16px 24px', textAlign: 'right' }}>
                           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '12px' }}>
                             {isUploading ? (
@@ -931,39 +977,59 @@ export default function StudentDetailPage() {
             })()}
           </div>
         )}
-        {studentTab === 'Descargas' && (
-          <div className="bento-card" style={{ padding: 0 }}>
-            <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--border-color)' }}>
-              <h3 style={{ fontSize: '16px', fontWeight: '600', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Download size={18} color="var(--brand-blue)" /> Formatos y Descargables
-              </h3>
-              <p style={{ margin: '4px 0 0 0', fontSize: '13px', color: 'var(--text-secondary)' }}>Documentos listos para descargar o imprimir para {selectedStudent.name}.</p>
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '16px', padding: '24px' }}>
-              {[
-                { title: 'Comprobante de Inscripción', date: 'Generado hoy', icon: <FileText size={20} color="var(--brand-blue)" /> },
-                { title: 'Credencial de Estudiante', date: 'Generado hoy', icon: <UserCheck size={20} color="var(--brand-blue)" /> },
-                { title: 'Reglamento Escolar 2024-2025', date: 'PDF Institucional', icon: <BookOpen size={20} color="var(--brand-blue)" /> },
-                { title: 'Temario Oficial del Curso', date: 'PDF Institucional', icon: <Target size={20} color="var(--brand-blue)" /> }
-              ].map((doc, i) => (
-                <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px', border: '1px solid var(--border-color)', borderRadius: '12px', background: 'var(--bg-main)', transition: 'var(--transition)', cursor: 'pointer' }} onMouseOver={e => e.currentTarget.style.borderColor = 'var(--brand-blue)'} onMouseOut={e => e.currentTarget.style.borderColor = 'var(--border-color)'}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    <div style={{ width: '40px', height: '40px', borderRadius: '8px', background: 'rgba(59, 130, 246, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      {doc.icon}
-                    </div>
-                    <div>
-                      <div style={{ fontSize: '14px', fontWeight: '600', color: 'var(--text-primary)' }}>{doc.title}</div>
-                      <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{doc.date}</div>
-                    </div>
-                  </div>
-                  <button style={{ background: 'transparent', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '8px', borderRadius: '50%', transition: 'var(--transition)' }} onMouseOver={e => { e.currentTarget.style.background = 'rgba(59, 130, 246, 0.1)'; e.currentTarget.style.color = 'var(--brand-blue)'; }} onMouseOut={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-secondary)'; }}>
-                    <Download size={18} />
-                  </button>
+        {studentTab === 'Descargas' && (() => {
+          // Match student service to look up document/material configurations
+          const studentService = servicios.find((s: any) => 
+            selectedStudent?.curso?.toLowerCase().includes(s.nombre.toLowerCase()) ||
+            s.nombre.toLowerCase().includes(selectedStudent?.curso?.replace('Ingreso ', '')?.toLowerCase())
+          );
+          
+          const dynamicDocs = (studentService?.materialesConfig || []).map((mat: any) => ({
+            title: mat.nombre,
+            date: mat.caracteristicas || 'Material del Curso',
+            icon: <BookOpen size={20} color="var(--brand-blue)" />
+          }));
+
+          return (
+            <div className="bento-card" style={{ padding: 0 }}>
+              <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--border-color)' }}>
+                <h3 style={{ fontSize: '16px', fontWeight: '600', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Download size={18} color="var(--brand-blue)" /> Formatos y Descargables
+                </h3>
+                <p style={{ margin: '4px 0 0 0', fontSize: '13px', color: 'var(--text-secondary)' }}>Materiales didácticos y guías asignados para {selectedStudent.name}.</p>
+              </div>
+              
+              {dynamicDocs.length === 0 ? (
+                <div style={{ padding: '48px 24px', textAlign: 'center' }}>
+                  <BookOpen size={32} color="var(--text-secondary)" style={{ marginInline: 'auto', marginBottom: '12px', opacity: 0.6 }} />
+                  <span style={{ fontSize: '14px', fontWeight: '600', color: 'var(--text-primary)', display: 'block' }}>Sin Materiales Asignados</span>
+                  <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: '4px 0 0 0', lineHeight: '1.4' }}>
+                    No se han configurado materiales o guías de estudio para este curso en la sección de servicios.
+                  </p>
                 </div>
-              ))}
+              ) : (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '16px', padding: '24px' }}>
+                  {dynamicDocs.map((doc, i) => (
+                    <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px', border: '1px solid var(--border-color)', borderRadius: '12px', background: 'var(--bg-main)', transition: 'var(--transition)', cursor: 'pointer' }} onMouseOver={e => e.currentTarget.style.borderColor = 'var(--brand-blue)'} onMouseOut={e => e.currentTarget.style.borderColor = 'var(--border-color)'}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                        <div style={{ width: '40px', height: '40px', borderRadius: '8px', background: 'rgba(59, 130, 246, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          {doc.icon}
+                        </div>
+                        <div>
+                          <div style={{ fontSize: '14px', fontWeight: '600', color: 'var(--text-primary)' }}>{doc.title}</div>
+                          <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{doc.date}</div>
+                        </div>
+                      </div>
+                      <button style={{ background: 'transparent', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '8px', borderRadius: '50%', transition: 'var(--transition)' }} onMouseOver={e => { e.currentTarget.style.background = 'rgba(59, 130, 246, 0.1)'; e.currentTarget.style.color = 'var(--brand-blue)'; }} onMouseOut={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-secondary)'; }}>
+                        <Download size={18} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
-          </div>
-        )}
+          );
+        })()}
         {studentTab === 'Finanzas' && (() => {
           // Función auxiliar local para formatear fechas de vencimiento de forma segura contra offsets de zona horaria
           const formatLocalDate = (dateStr: string | null | undefined) => {
@@ -1906,7 +1972,7 @@ export default function StudentDetailPage() {
                 <tbody>
                   {selectedStudent.attendance?.history?.map((h: any, i: number) => (
                     <tr key={i} style={{ borderBottom: '1px solid var(--border-color)' }}>
-                      <td style={{ padding: '16px 24px', fontSize: '14px', color: 'var(--text-primary)' }}>{h.date}</td>
+                      <td style={{ padding: '16px 24px', fontSize: '14px', color: 'var(--text-primary)' }}>{formatAttendanceDate(h.date)}</td>
                       <td style={{ padding: '16px 24px', textAlign: 'right' }}>
                         <span style={{ 
                           padding: '4px 10px', borderRadius: '100px', fontSize: '12px', fontWeight: '600',

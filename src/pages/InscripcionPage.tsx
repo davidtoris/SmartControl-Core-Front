@@ -19,28 +19,51 @@ const DOCS_CONFIG: Record<string, { desc: string }> = {
   'INE/IFE': { desc: 'Copia de identificación oficial de tutor o alumno.' },
   'Certificado Primaria': { desc: 'Certificado oficial de nivel primaria.' },
   'Certificado Secundaria': { desc: 'Certificado oficial de nivel secundaria.' },
-  'Certificado de Estudios': { desc: 'Secundaria o Bachillerato.' }
+  'Certificado de Estudios': { desc: 'Secundaria o Bachillerato.' },
+  'Comprobante de Pago': { desc: 'Comprobante de pago de inscripción o transferencia bancaria.' },
+  'Carta de Compromiso': { desc: 'Formato de reglamento y carta compromiso de la institución firmada.' },
+  'Certificado Médico': { desc: 'Dictamen o certificado de salud oficial del alumno reciente.' },
+  'Boleta de Calificaciones': { desc: 'Boleta de calificaciones del último ciclo escolar cursado.' },
+  'Fotografía del Tutor': { desc: 'Fotografía infantil formal reciente del padre, madre o tutor legal.' },
+  'Cédula Fiscal (RFC)': { desc: 'Cédula de identificación fiscal oficial del tutor (obligatoria para facturar).' }
 };
 
 // --- Esquema de Validación con Zod ---
 const contactSchema = z.object({
+  fechaRegistro: z.string().min(1, { message: 'La fecha de registro es obligatoria.' }),
   nombre: z.string()
     .min(3, { message: 'El nombre debe tener al menos 3 caracteres.' })
     .regex(/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/, { message: 'El nombre solo debe contener letras y espacios.' }),
-  correo: z.string()
-    .min(1, { message: 'El correo electrónico es obligatorio.' })
-    .email({ message: 'Formato de correo electrónico no válido.' }),
+  entidadFederativa: z.string().min(1, { message: 'La entidad federativa es obligatoria.' }),
+  horario: z.string().min(1, { message: 'El horario es obligatorio.' }),
   celular: z.string()
-    .min(10, { message: 'El celular debe tener exactamente 10 dígitos.' })
-    .max(10, { message: 'El celular debe tener exactamente 10 dígitos.' })
+    .min(10, { message: 'El celular móvil debe tener exactamente 10 dígitos.' })
+    .max(10, { message: 'El celular móvil debe tener exactamente 10 dígitos.' })
     .regex(/^\d+$/, { message: 'Solo se permiten números.' }),
-  tutorNombre: z.string()
-    .min(3, { message: 'El nombre del tutor debe tener al menos 3 caracteres.' })
-    .regex(/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/, { message: 'El nombre solo debe contener letras y espacios.' }),
-  tutorPhone: z.string()
-    .min(10, { message: 'El WhatsApp del tutor debe tener exactamente 10 dígitos.' })
-    .max(10, { message: 'El WhatsApp del tutor debe tener exactamente 10 dígitos.' })
+  telefonoContacto: z.string()
+    .min(10, { message: 'El teléfono de contacto debe tener exactamente 10 dígitos.' })
+    .max(10, { message: 'El teléfono de contacto debe tener exactamente 10 dígitos.' })
     .regex(/^\d+$/, { message: 'Solo se permiten números.' }),
+  formaPago: z.string().min(1, { message: 'La forma de pago es obligatoria.' }),
+  esMenor: z.boolean(),
+  tutorNombre: z.string().optional(),
+  tutorCorreo: z.string().optional(),
+}).refine(data => {
+  if (data.esMenor) {
+    return !!data.tutorNombre && data.tutorNombre.trim().length >= 3 && /^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/.test(data.tutorNombre);
+  }
+  return true;
+}, {
+  message: 'El nombre del tutor debe tener al menos 3 letras y no contener caracteres especiales.',
+  path: ['tutorNombre']
+}).refine(data => {
+  if (data.esMenor) {
+    return !!data.tutorCorreo && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.tutorCorreo);
+  }
+  return true;
+}, {
+  message: 'El correo electrónico del tutor es obligatorio y debe ser válido.',
+  path: ['tutorCorreo']
 });
 
 type ContactFormData = z.infer<typeof contactSchema>;
@@ -59,18 +82,33 @@ export default function InscripcionPage() {
     handleSubmit, 
     formState: { errors, isValid },
     trigger,
-    getValues
+    getValues,
+    watch,
+    setValue
   } = useForm<ContactFormData>({
     resolver: zodResolver(contactSchema),
     mode: 'onChange',
     defaultValues: {
+      fechaRegistro: new Date().toISOString().split('T')[0],
       nombre: '',
-      correo: '',
+      entidadFederativa: 'Ciudad de México',
+      horario: 'Matutino (08:00 - 12:00)',
       celular: '',
+      telefonoContacto: '',
+      formaPago: 'Contado',
+      esMenor: false,
       tutorNombre: '',
-      tutorPhone: ''
+      tutorCorreo: ''
     }
   });
+
+  const watchFormaPago = watch('formaPago');
+  const esMenor = watch('esMenor');
+  useEffect(() => {
+    if (watchFormaPago) {
+      setTipoPago(watchFormaPago as 'Contado' | 'Pagos');
+    }
+  }, [watchFormaPago]);
 
   // --- Parámetros de Enlace Personalizado ---
   const paramCurso = searchParams.get('curso'); // UNAM, COMIPEMS, IPN
@@ -118,6 +156,17 @@ export default function InscripcionPage() {
     return ['Acta de Nacimiento', 'CURP', 'Foto', 'Comprobante de Domicilio'];
   }, [enlaceData]);
 
+  const requiredDocsConfig = useMemo<{ nombre: string; caracteristicas: string }[]>(() => {
+    if (enlaceData?.documentosConfig && Array.isArray(enlaceData.documentosConfig) && enlaceData.documentosConfig.length > 0) {
+      return enlaceData.documentosConfig;
+    }
+    // Fallback based on requiredDocs
+    return requiredDocs.map(docName => ({
+      nombre: docName,
+      caracteristicas: DOCS_CONFIG[docName]?.desc || 'Documento oficial requerido.'
+    }));
+  }, [enlaceData, requiredDocs]);
+
   const [docs, setDocs] = useState<Record<string, { file: File | null; progress: number; status: 'Faltante' | 'Subiendo' | 'Subido'; error?: string }>>({});
 
   useEffect(() => {
@@ -156,7 +205,6 @@ export default function InscripcionPage() {
     ? 1 
     : (enlaceData ? enlaceData.planPagosTotales : (paramPlazos ? parseInt(paramPlazos) : selectedConfig.duracion));
 
-  const costoMensualidad = costoTotal / mensualidadesDiferidas;
   const pagoInicial = 0;
 
   // Variables estáticas del plan financiado para visualización del botón (independientes del tipoPago seleccionado)
@@ -326,10 +374,15 @@ export default function InscripcionPage() {
     const newStudent = {
       name: values.nombre,
       curso: `Ingreso ${curso}`,
-      tutor: values.tutorNombre,
+      tutor: values.esMenor ? values.tutorNombre : 'N/A (Mayor de Edad)',
       status: finalStatus,
-      phone: values.tutorPhone,
+      phone: values.celular,
       avatar: initials || 'AL',
+      fechaRegistro: values.fechaRegistro,
+      entidadFederativa: values.entidadFederativa,
+      horario: values.horario,
+      telefonoContacto: values.telefonoContacto,
+      tutorEmail: values.esMenor ? values.tutorCorreo : '',
       paymentPlan: {
         type: tipoPago === 'Contado' ? 'Contado' : `${mensualidadesDiferidas} pagos`,
         totalCost: costoTotal,
@@ -663,46 +716,57 @@ export default function InscripcionPage() {
             </div>
 
             <form onSubmit={handleSubmit(handleFinalize)} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-              <div className="form-group">
-                <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <User size={14} /> Nombre Completo del Aspirante *
-                </label>
-                <input 
-                  type="text" 
-                  className="form-input" 
-                  style={{ borderColor: errors.nombre ? '#ef4444' : 'var(--border-color)', transition: 'all 0.2s' }}
-                  placeholder="Ej. Juan Pérez Gómez" 
-                  {...register('nombre')}
-                />
-                {errors.nombre && (
-                  <span style={{ color: '#ef4444', fontSize: '12px', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: '500' }}>
-                    <AlertCircle size={12} /> {errors.nombre.message}
-                  </span>
-                )}
+              
+              <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '20px' }}>
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <User size={14} /> Nombre Completo del Alumno *
+                  </label>
+                  <input 
+                    type="text" 
+                    className="form-input" 
+                    style={{ borderColor: errors.nombre ? '#ef4444' : 'var(--border-color)', transition: 'all 0.2s' }}
+                    placeholder="Ej. Juan Pérez Gómez" 
+                    {...register('nombre')}
+                  />
+                  {errors.nombre && (
+                    <span style={{ color: '#ef4444', fontSize: '12px', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: '500' }}>
+                      <AlertCircle size={12} /> {errors.nombre.message}
+                    </span>
+                  )}
+                </div>
+
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <MapPin size={14} /> Entidad Federativa *
+                  </label>
+                  <select 
+                    className="form-input" 
+                    style={{ borderColor: errors.entidadFederativa ? '#ef4444' : 'var(--border-color)', transition: 'all 0.2s' }}
+                    {...register('entidadFederativa')}
+                  >
+                    {[
+                      'Aguascalientes', 'Baja California', 'Baja California Sur', 'Campeche', 'Chiapas', 
+                      'Chihuahua', 'Ciudad de México', 'Coahuila', 'Colima', 'Durango', 'Estado de México', 
+                      'Guanajuato', 'Guerrero', 'Hidalgo', 'Jalisco', 'Michoacán', 'Morelos', 'Nayarit', 
+                      'Nuevo León', 'Oaxaca', 'Puebla', 'Querétaro', 'Quintana Roo', 'San Luis Potosí', 
+                      'Sinaloa', 'Sonora', 'Tabasco', 'Tamaulipas', 'Tlaxcala', 'Veracruz', 'Yucatán', 'Zacatecas'
+                    ].map(state => (
+                      <option key={state} value={state}>{state}</option>
+                    ))}
+                  </select>
+                  {errors.entidadFederativa && (
+                    <span style={{ color: '#ef4444', fontSize: '12px', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: '500' }}>
+                      <AlertCircle size={12} /> {errors.entidadFederativa.message}
+                    </span>
+                  )}
+                </div>
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
                 <div className="form-group" style={{ marginBottom: 0 }}>
                   <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <Mail size={14} /> Correo Electrónico del Aspirante *
-                  </label>
-                  <input 
-                    type="email" 
-                    className="form-input" 
-                    style={{ borderColor: errors.correo ? '#ef4444' : 'var(--border-color)', transition: 'all 0.2s' }}
-                    placeholder="juan.perez@example.com" 
-                    {...register('correo')}
-                  />
-                  {errors.correo && (
-                    <span style={{ color: '#ef4444', fontSize: '12px', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: '500' }}>
-                      <AlertCircle size={12} /> {errors.correo.message}
-                    </span>
-                  )}
-                </div>
-                
-                <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <Phone size={14} /> Teléfono Celular (10 dígitos) *
+                    <Phone size={14} /> Teléfono Celular Móvil *
                   </label>
                   <input 
                     type="tel" 
@@ -718,48 +782,105 @@ export default function InscripcionPage() {
                     </span>
                   )}
                 </div>
-              </div>
 
-              <div style={{ height: '1px', background: 'var(--border-color)', margin: '12px 0' }} />
-
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--brand-blue)', fontWeight: '600', fontSize: '15px', marginBottom: '8px' }}>
-                <ShieldCheck size={18} /> Datos de Seguridad (Tutor Responsable)
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
                 <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label className="form-label">Nombre Completo del Tutor *</label>
-                  <input 
-                    type="text" 
-                    className="form-input" 
-                    style={{ borderColor: errors.tutorNombre ? '#ef4444' : 'var(--border-color)', transition: 'all 0.2s' }}
-                    placeholder="Ej. Carlos Pérez" 
-                    {...register('tutorNombre')}
-                  />
-                  {errors.tutorNombre && (
-                    <span style={{ color: '#ef4444', fontSize: '12px', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: '500' }}>
-                      <AlertCircle size={12} /> {errors.tutorNombre.message}
-                    </span>
-                  )}
-                </div>
-                
-                <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label className="form-label">Teléfono de WhatsApp del Tutor *</label>
+                  <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <Phone size={14} /> Teléfono de Contacto *
+                  </label>
                   <input 
                     type="tel" 
                     maxLength={10}
                     className="form-input" 
-                    style={{ borderColor: errors.tutorPhone ? '#ef4444' : 'var(--border-color)', transition: 'all 0.2s' }}
+                    style={{ borderColor: errors.telefonoContacto ? '#ef4444' : 'var(--border-color)', transition: 'all 0.2s' }}
                     placeholder="5587654321" 
-                    {...register('tutorPhone')}
+                    {...register('telefonoContacto')}
                   />
-                  {errors.tutorPhone && (
+                  {errors.telefonoContacto && (
                     <span style={{ color: '#ef4444', fontSize: '12px', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: '500' }}>
-                      <AlertCircle size={12} /> {errors.tutorPhone.message}
+                      <AlertCircle size={12} /> {errors.telefonoContacto.message}
                     </span>
                   )}
                 </div>
               </div>
+
+              <div style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: '10px', 
+                background: 'rgba(255, 255, 255, 0.02)',
+                border: '1px solid var(--border-color)',
+                borderRadius: '12px',
+                padding: '16px 20px',
+                marginTop: '10px'
+              }}>
+                <input 
+                  type="checkbox" 
+                  id="esMenor" 
+                  style={{ 
+                    width: '18px', 
+                    height: '18px', 
+                    accentColor: 'var(--brand-blue)', 
+                    cursor: 'pointer' 
+                  }}
+                  {...register('esMenor')}
+                />
+                <label htmlFor="esMenor" style={{ fontSize: '14px', fontWeight: '600', color: 'var(--text-primary)', cursor: 'pointer', userSelect: 'none' }}>
+                  El alumno es menor de edad (requiere tutor)
+                </label>
+              </div>
+
+              {esMenor && (
+                <div style={{ 
+                  display: 'flex', 
+                  flexDirection: 'column', 
+                  gap: '20px', 
+                  borderLeft: '3px solid var(--brand-blue)',
+                  paddingLeft: '20px',
+                  marginTop: '10px'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--brand-blue)', fontWeight: '600', fontSize: '15px' }}>
+                    <ShieldCheck size={18} /> Datos del Padre o Tutor Responsable
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+                    <div className="form-group" style={{ marginBottom: 0 }}>
+                      <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <User size={14} /> Nombre Completo del Tutor *
+                      </label>
+                      <input 
+                        type="text" 
+                        className="form-input" 
+                        style={{ borderColor: errors.tutorNombre ? '#ef4444' : 'var(--border-color)', transition: 'all 0.2s' }}
+                        placeholder="Ej. Carlos Pérez" 
+                        {...register('tutorNombre')}
+                      />
+                      {errors.tutorNombre && (
+                        <span style={{ color: '#ef4444', fontSize: '12px', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: '500' }}>
+                          <AlertCircle size={12} /> {errors.tutorNombre.message}
+                        </span>
+                      )}
+                    </div>
+                    
+                    <div className="form-group" style={{ marginBottom: 0 }}>
+                      <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <Mail size={14} /> Correo Electrónico del Tutor *
+                      </label>
+                      <input 
+                        type="email" 
+                        className="form-input" 
+                        style={{ borderColor: errors.tutorCorreo ? '#ef4444' : 'var(--border-color)', transition: 'all 0.2s' }}
+                        placeholder="tutor@example.com" 
+                        {...register('tutorCorreo')}
+                      />
+                      {errors.tutorCorreo && (
+                        <span style={{ color: '#ef4444', fontSize: '12px', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: '500' }}>
+                          <AlertCircle size={12} /> {errors.tutorCorreo.message}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
             </form>
           </div>
         )}
@@ -925,7 +1046,10 @@ export default function InscripcionPage() {
                         <button
                           key={t.id}
                           type="button"
-                          onClick={() => setTurno(t.id)}
+                          onClick={() => {
+                            setTurno(t.id);
+                            setValue('horario', t.id === 'Matutino' ? 'Matutino (08:00 - 12:00)' : 'Vespertino (14:00 - 18:00)');
+                          }}
                           style={{
                             flex: 1,
                             background: isSelected ? 'var(--brand-blue)' : 'var(--bg-main)',
@@ -971,9 +1095,10 @@ export default function InscripcionPage() {
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
-              {requiredDocs.map(docName => {
+              {requiredDocsConfig.map(doc => {
+                const docName = doc.nombre;
                 const itemData = docs[docName] || { file: null, progress: 0, status: 'Faltante' };
-                const desc = DOCS_CONFIG[docName]?.desc || 'Documento oficial requerido.';
+                const desc = doc.caracteristicas || 'Documento oficial requerido.';
                 return (
                   <div 
                     key={docName}
@@ -1084,7 +1209,10 @@ export default function InscripcionPage() {
                     {/* Tarjeta Opción 1: Pago de Contado (Foco Positivo Premium) */}
                     <button
                       type="button"
-                      onClick={() => setTipoPago('Contado')}
+                      onClick={() => {
+                        setTipoPago('Contado');
+                        setValue('formaPago', 'Contado');
+                      }}
                       style={{
                         width: '100%',
                         background: tipoPago === 'Contado' ? 'rgba(34, 197, 94, 0.04)' : 'var(--bg-main)',
@@ -1135,7 +1263,10 @@ export default function InscripcionPage() {
                     {/* Tarjeta Opción 2: Pago a Plazos */}
                     <button
                       type="button"
-                      onClick={() => setTipoPago('Pagos')}
+                      onClick={() => {
+                        setTipoPago('Pagos');
+                        setValue('formaPago', 'Pagos');
+                      }}
                       style={{
                         width: '100%',
                         background: tipoPago === 'Pagos' ? 'rgba(30, 58, 138, 0.04)' : 'var(--bg-main)',

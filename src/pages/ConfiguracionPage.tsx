@@ -10,6 +10,33 @@ import {
 import { useAppStore } from '../store/useAppStore';
 import type { Category } from '../store/useAppStore';
 
+const DOCS_DESC_FALLBACK: Record<string, string> = {
+  'Acta de Nacimiento': 'Copia certificada legible.',
+  'CURP': 'Descarga reciente del portal Segob.',
+  'Foto': 'Fotografía infantil formal reciente.',
+  'Comprobante de Domicilio': 'Recibo de luz, agua o teléfono.',
+  'INE/IFE': 'Copia de identificación oficial de tutor o alumno.',
+  'Certificado Primaria': 'Certificado oficial de nivel primaria.',
+  'Certificado Secundaria': 'Certificado oficial de nivel secundaria.',
+  'Certificado de Estudios': 'Secundaria o Bachillerato.',
+  'Comprobante de Pago': 'Comprobante de pago de inscripción o transferencia bancaria.',
+  'Carta de Compromiso': 'Formato de reglamento y carta compromiso de la institución firmada.',
+  'Certificado Médico': 'Dictamen o certificado de salud oficial del alumno reciente.',
+  'Boleta de Calificaciones': 'Boleta de calificaciones del último ciclo escolar cursado.',
+  'Fotografía del Tutor': 'Fotografía infantil formal reciente del padre, madre o tutor legal.',
+  'Cédula Fiscal (RFC)': 'Cédula de identificación fiscal oficial del tutor (obligatoria para facturar).'
+};
+
+const MATERIALES_DESC_FALLBACK: Record<string, string> = {
+  'Guía de Estudios (Matemáticas)': 'Guía teórica con ejercicios resueltos de matemáticas.',
+  'Guía de Estudios (Español)': 'Material complementario de comprensión lectora y español.',
+  'Pasos de Bienvenida (CRECE)': 'Tríptico explicativo de inducción y metodología CRECE.',
+  'Reglamento Interno': 'Normativa oficial de convivencia y asistencia.',
+  'Examen Diagnóstico UAM': 'Prueba tipo examen real con respuestas explicadas.',
+  'Guía COMIPEMS 2026': 'Compendio oficial actualizado para ingreso medio superior.',
+  'Manual del Estudiante': 'Bitácora física de seguimiento académico y tareas.'
+};
+
 export default function ConfiguracionPage() {
   const { 
     categories,
@@ -49,16 +76,6 @@ export default function ConfiguracionPage() {
   const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({});
 
   // --- ESTADO PARA SERVICIOS ---
-  const DOCS_OPCIONES = ['Acta de Nacimiento', 'CURP', 'Foto', 'Comprobante de Domicilio', 'INE/IFE', 'Certificado Primaria', 'Certificado Secundaria'];
-  const MATERIALES_OPCIONES = [
-    'Guía de Estudios (Matemáticas)',
-    'Guía de Estudios (Español)',
-    'Pasos de Bienvenida (CRECE)',
-    'Reglamento Interno',
-    'Examen Diagnóstico UAM',
-    'Guía COMIPEMS 2026',
-    'Manual del Estudiante'
-  ];
   const [showCreateServicioModal, setShowCreateServicioModal] = useState(false);
   const [showEditServicioModal, setShowEditServicioModal] = useState(false);
   const [editingServicio, setEditingServicio] = useState<any>(null);
@@ -67,8 +84,8 @@ export default function ConfiguracionPage() {
     nombre: '',
     descripcion: '',
     duracionMeses: 3,
-    documentosRequeridos: [] as string[],
-    materiales: [] as string[],
+    documentosConfig: [] as { nombre: string; caracteristicas: string }[],
+    materialesConfig: [] as { nombre: string; caracteristicas: string }[],
     proceso: '',
     tieneCertificado: false,
     requiereEvidencia: false
@@ -306,29 +323,6 @@ export default function ConfiguracionPage() {
   };
 
   // --- HANDLERS PARA SERVICIOS ---
-  const toggleDocServicio = (doc: string, isEditing = false) => {
-    if (isEditing && editingServicio) {
-      const current = editingServicio.documentosRequeridos || [];
-      const updated = current.includes(doc) ? current.filter((d: string) => d !== doc) : [...current, doc];
-      setEditingServicio({ ...editingServicio, documentosRequeridos: updated });
-    } else {
-      const current = newServicio.documentosRequeridos;
-      const updated = current.includes(doc) ? current.filter(d => d !== doc) : [...current, doc];
-      setNewServicio({ ...newServicio, documentosRequeridos: updated });
-    }
-  };
-
-  const toggleMaterialServicio = (material: string, isEditing = false) => {
-    if (isEditing && editingServicio) {
-      const current = editingServicio.materiales || [];
-      const updated = current.includes(material) ? current.filter((m: string) => m !== material) : [...current, material];
-      setEditingServicio({ ...editingServicio, materiales: updated });
-    } else {
-      const current = newServicio.materiales || [];
-      const updated = current.includes(material) ? current.filter(m => m !== material) : [...current, material];
-      setNewServicio({ ...newServicio, materiales: updated });
-    }
-  };
 
   const handleCreateServicio = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -338,18 +332,23 @@ export default function ConfiguracionPage() {
     }
     setIsSubmitting(true);
     try {
+      // Filter out any rows with empty names
+      const validDocs = newServicio.documentosConfig.filter(d => d.nombre.trim());
+      const validMat = newServicio.materialesConfig.filter(m => m.nombre.trim());
       await createServicio({
         nombre: newServicio.nombre.trim(),
         descripcion: newServicio.descripcion.trim() || undefined,
         duracionMeses: Number(newServicio.duracionMeses),
-        documentosRequeridos: newServicio.documentosRequeridos,
-        materiales: newServicio.materiales,
+        documentosConfig: validDocs,
+        documentosRequeridos: validDocs.map(d => d.nombre.trim()),
+        materialesConfig: validMat,
+        materiales: validMat.map(m => m.nombre.trim()),
         proceso: newServicio.proceso.trim() || undefined,
         tieneCertificado: newServicio.tieneCertificado,
         requiereEvidencia: newServicio.requiereEvidencia
       });
       setShowCreateServicioModal(false);
-      setNewServicio({ nombre: '', descripcion: '', duracionMeses: 3, documentosRequeridos: [], materiales: [], proceso: '', tieneCertificado: false, requiereEvidencia: false });
+      setNewServicio({ nombre: '', descripcion: '', duracionMeses: 3, documentosConfig: [], materialesConfig: [], proceso: '', tieneCertificado: false, requiereEvidencia: false });
       setFeedback({ message: '¡Servicio creado exitosamente! 🎯', type: 'success' });
     } catch {
       setFeedback({ message: 'Error al crear el servicio.', type: 'error' });
@@ -363,12 +362,17 @@ export default function ConfiguracionPage() {
     if (!editingServicio) return;
     setIsSubmitting(true);
     try {
+      // Filter out any rows with empty names
+      const validDocs = (editingServicio.documentosConfig || []).filter((d: any) => d.nombre.trim());
+      const validMat = (editingServicio.materialesConfig || []).filter((m: any) => m.nombre.trim());
       await updateServicio(editingServicio.id, {
         nombre: editingServicio.nombre,
         descripcion: editingServicio.descripcion || undefined,
         duracionMeses: Number(editingServicio.duracionMeses),
-        documentosRequeridos: editingServicio.documentosRequeridos,
-        materiales: editingServicio.materiales,
+        documentosConfig: validDocs,
+        documentosRequeridos: validDocs.map((d: any) => d.nombre.trim()),
+        materialesConfig: validMat,
+        materiales: validMat.map((m: any) => m.nombre.trim()),
         proceso: editingServicio.proceso || undefined,
         tieneCertificado: editingServicio.tieneCertificado,
         requiereEvidencia: editingServicio.requiereEvidencia
@@ -1224,11 +1228,15 @@ export default function ConfiguracionPage() {
                           )}
                           {srv.materiales && srv.materiales.length > 0 && (
                             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginTop: '6px' }}>
-                              {srv.materiales.map(mat => (
-                                <span key={mat} style={{ fontSize: '10px', background: 'rgba(59, 130, 246, 0.1)', color: '#3b82f6', borderRadius: '4px', padding: '1px 6px', fontWeight: '600', display: 'inline-flex', alignItems: 'center', gap: '3px', border: '1px solid rgba(59, 130, 246, 0.2)' }}>
-                                  <BookOpen size={9} /> {mat}
-                                </span>
-                              ))}
+                              {srv.materiales.map(mat => {
+                                const matched = srv.materialesConfig?.find((m: any) => m.nombre === mat);
+                                const desc = matched?.caracteristicas || MATERIALES_DESC_FALLBACK[mat] || 'Material incluido';
+                                return (
+                                  <span key={mat} title={desc} style={{ fontSize: '10px', background: 'rgba(59, 130, 246, 0.1)', color: '#3b82f6', borderRadius: '4px', padding: '1px 6px', fontWeight: '600', display: 'inline-flex', alignItems: 'center', gap: '3px', border: '1px solid rgba(59, 130, 246, 0.2)', cursor: 'help' }}>
+                                    <BookOpen size={9} /> {mat}
+                                  </span>
+                                );
+                              })}
                             </div>
                           )}
                         </div>
@@ -1245,11 +1253,15 @@ export default function ConfiguracionPage() {
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', maxWidth: '220px' }}>
                           {srv.documentosRequeridos.length === 0 ? (
                             <span style={{ fontSize: '12px', color: 'var(--text-secondary)', fontStyle: 'italic' }}>Sin documentos</span>
-                          ) : srv.documentosRequeridos.map(doc => (
-                            <span key={doc} style={{ fontSize: '11px', background: 'rgba(16, 185, 129, 0.1)', color: '#10b981', borderRadius: '4px', padding: '2px 7px', fontWeight: '500', border: '1px solid rgba(16, 185, 129, 0.2)' }}>
-                              {doc}
-                            </span>
-                          ))}
+                          ) : srv.documentosRequeridos.map(doc => {
+                            const matched = srv.documentosConfig?.find((d: any) => d.nombre === doc);
+                            const desc = matched?.caracteristicas || DOCS_DESC_FALLBACK[doc] || 'Documento requerido';
+                            return (
+                              <span key={doc} title={desc} style={{ fontSize: '11px', background: 'rgba(16, 185, 129, 0.1)', color: '#10b981', borderRadius: '4px', padding: '2px 7px', fontWeight: '500', border: '1px solid rgba(16, 185, 129, 0.2)', cursor: 'help' }}>
+                                {doc}
+                              </span>
+                            );
+                          })}
                         </div>
                       </td>
                       {/* Requisitos de Entrega */}
@@ -1293,7 +1305,22 @@ export default function ConfiguracionPage() {
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
                           <button
                             title="Editar servicio"
-                            onClick={() => { setEditingServicio({ ...srv }); setShowEditServicioModal(true); }}
+                            onClick={() => {
+                              const docsConfig = srv.documentosConfig && srv.documentosConfig.length > 0
+                                ? srv.documentosConfig
+                                : (srv.documentosRequeridos || []).map((docName: string) => ({
+                                    nombre: docName,
+                                    caracteristicas: DOCS_DESC_FALLBACK[docName] || ''
+                                  }));
+                              const matConfig = srv.materialesConfig && srv.materialesConfig.length > 0
+                                ? srv.materialesConfig
+                                : (srv.materiales || []).map((matName: string) => ({
+                                    nombre: matName,
+                                    caracteristicas: MATERIALES_DESC_FALLBACK[matName] || ''
+                                  }));
+                              setEditingServicio({ ...srv, documentosConfig: docsConfig, materialesConfig: matConfig });
+                              setShowEditServicioModal(true);
+                            }}
                             style={{ background: 'rgba(59,130,246,0.1)', border: 'none', borderRadius: '8px', padding: '7px', cursor: 'pointer', color: '#3b82f6', display: 'flex', alignItems: 'center', transition: 'all 0.2s' }}
                           >
                             <Pencil size={14} />
@@ -2231,31 +2258,111 @@ export default function ConfiguracionPage() {
               </div>
               <div>
                 <label style={{ fontSize: '12px', fontWeight: '600', color: 'rgba(255,255,255,0.6)', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block', marginBottom: '10px' }}>Documentos Requeridos</label>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                  {DOCS_OPCIONES.map(doc => {
-                    const checked = newServicio.documentosRequeridos.includes(doc);
-                    return (
-                      <button key={doc} type="button" onClick={() => toggleDocServicio(doc, false)}
-                        style={{ padding: '6px 12px', borderRadius: '20px', border: `1px solid ${checked ? '#10b981' : 'rgba(255,255,255,0.15)'}`, background: checked ? 'rgba(16,185,129,0.15)' : 'rgba(255,255,255,0.05)', color: checked ? '#10b981' : 'rgba(255,255,255,0.6)', fontSize: '12px', fontWeight: '500', cursor: 'pointer', transition: 'all 0.2s', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                        {checked && <Check size={11} />}{doc}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '12px' }}>
+                  {newServicio.documentosConfig.map((doc, idx) => (
+                    <div key={idx} style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                      <input
+                        type="text"
+                        required
+                        placeholder="Nombre (ej. CURP)"
+                        value={doc.nombre}
+                        onChange={(e) => {
+                          const updated = [...newServicio.documentosConfig];
+                          updated[idx] = { ...updated[idx], nombre: e.target.value };
+                          setNewServicio({ ...newServicio, documentosConfig: updated });
+                        }}
+                        style={{ flex: 1, padding: '10px 12px', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: '#fff', fontSize: '13px', outline: 'none' }}
+                      />
+                      <input
+                        type="text"
+                        placeholder="Características (ej. Copia legible)"
+                        value={doc.caracteristicas}
+                        onChange={(e) => {
+                          const updated = [...newServicio.documentosConfig];
+                          updated[idx] = { ...updated[idx], caracteristicas: e.target.value };
+                          setNewServicio({ ...newServicio, documentosConfig: updated });
+                        }}
+                        style={{ flex: 1, padding: '10px 12px', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: '#fff', fontSize: '13px', outline: 'none' }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const updated = newServicio.documentosConfig.filter((_, i) => i !== idx);
+                          setNewServicio({ ...newServicio, documentosConfig: updated });
+                        }}
+                        style={{ background: 'rgba(239,68,68,0.15)', border: 'none', borderRadius: '8px', padding: '10px', cursor: 'pointer', color: '#ef4444', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                      >
+                        <Trash2 size={16} />
                       </button>
-                    );
-                  })}
+                    </div>
+                  ))}
                 </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setNewServicio({
+                      ...newServicio,
+                      documentosConfig: [...newServicio.documentosConfig, { nombre: '', caracteristicas: '' }]
+                    });
+                  }}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '8px 16px', background: 'rgba(124,58,237,0.15)', border: '1px dashed rgba(124,58,237,0.4)', borderRadius: '8px', color: '#c084fc', fontSize: '12px', fontWeight: '600', cursor: 'pointer', transition: 'all 0.2s' }}
+                >
+                  <Plus size={14} /> Agregar Documento
+                </button>
               </div>
               <div>
                 <label style={{ fontSize: '12px', fontWeight: '600', color: 'rgba(255,255,255,0.6)', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block', marginBottom: '10px' }}>Materiales y Guías Incluidos</label>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                  {MATERIALES_OPCIONES.map(material => {
-                    const checked = (newServicio.materiales || []).includes(material);
-                    return (
-                      <button key={material} type="button" onClick={() => toggleMaterialServicio(material, false)}
-                        style={{ padding: '6px 12px', borderRadius: '20px', border: `1px solid ${checked ? '#3b82f6' : 'rgba(255,255,255,0.15)'}`, background: checked ? 'rgba(59,130,246,0.15)' : 'rgba(255,255,255,0.05)', color: checked ? '#3b82f6' : 'rgba(255,255,255,0.6)', fontSize: '12px', fontWeight: '500', cursor: 'pointer', transition: 'all 0.2s', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                        {checked && <Check size={11} />}{material}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '12px' }}>
+                  {newServicio.materialesConfig.map((mat, idx) => (
+                    <div key={idx} style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                      <input
+                        type="text"
+                        required
+                        placeholder="Material (ej. Guía de Estudios)"
+                        value={mat.nombre}
+                        onChange={(e) => {
+                          const updated = [...newServicio.materialesConfig];
+                          updated[idx] = { ...updated[idx], nombre: e.target.value };
+                          setNewServicio({ ...newServicio, materialesConfig: updated });
+                        }}
+                        style={{ flex: 1, padding: '10px 12px', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: '#fff', fontSize: '13px', outline: 'none' }}
+                      />
+                      <input
+                        type="text"
+                        placeholder="Características (ej. Formato PDF o Impreso)"
+                        value={mat.caracteristicas}
+                        onChange={(e) => {
+                          const updated = [...newServicio.materialesConfig];
+                          updated[idx] = { ...updated[idx], caracteristicas: e.target.value };
+                          setNewServicio({ ...newServicio, materialesConfig: updated });
+                        }}
+                        style={{ flex: 1, padding: '10px 12px', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: '#fff', fontSize: '13px', outline: 'none' }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const updated = newServicio.materialesConfig.filter((_, i) => i !== idx);
+                          setNewServicio({ ...newServicio, materialesConfig: updated });
+                        }}
+                        style={{ background: 'rgba(239,68,68,0.15)', border: 'none', borderRadius: '8px', padding: '10px', cursor: 'pointer', color: '#ef4444', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                      >
+                        <Trash2 size={16} />
                       </button>
-                    );
-                  })}
+                    </div>
+                  ))}
                 </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setNewServicio({
+                      ...newServicio,
+                      materialesConfig: [...newServicio.materialesConfig, { nombre: '', caracteristicas: '' }]
+                    });
+                  }}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '8px 16px', background: 'rgba(59,130,246,0.15)', border: '1px dashed rgba(59,130,246,0.4)', borderRadius: '8px', color: '#60a5fa', fontSize: '12px', fontWeight: '600', cursor: 'pointer', transition: 'all 0.2s' }}
+                >
+                  <Plus size={14} /> Agregar Material
+                </button>
               </div>
               <div>
                 <label style={{ fontSize: '12px', fontWeight: '600', color: 'rgba(255,255,255,0.6)', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block', marginBottom: '8px' }}>Proceso de Entrega</label>
@@ -2335,31 +2442,111 @@ export default function ConfiguracionPage() {
               </div>
               <div>
                 <label style={{ fontSize: '12px', fontWeight: '600', color: 'rgba(255,255,255,0.6)', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block', marginBottom: '10px' }}>Documentos Requeridos</label>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                  {DOCS_OPCIONES.map(doc => {
-                    const checked = (editingServicio.documentosRequeridos || []).includes(doc);
-                    return (
-                      <button key={doc} type="button" onClick={() => toggleDocServicio(doc, true)}
-                        style={{ padding: '6px 12px', borderRadius: '20px', border: `1px solid ${checked ? '#10b981' : 'rgba(255,255,255,0.15)'}`, background: checked ? 'rgba(16,185,129,0.15)' : 'rgba(255,255,255,0.05)', color: checked ? '#10b981' : 'rgba(255,255,255,0.6)', fontSize: '12px', fontWeight: '500', cursor: 'pointer', transition: 'all 0.2s', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                        {checked && <Check size={11} />}{doc}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '12px' }}>
+                  {(editingServicio.documentosConfig || []).map((doc: any, idx: number) => (
+                    <div key={idx} style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                      <input
+                        type="text"
+                        required
+                        placeholder="Nombre (ej. CURP)"
+                        value={doc.nombre}
+                        onChange={(e) => {
+                          const updated = [...(editingServicio.documentosConfig || [])];
+                          updated[idx] = { ...updated[idx], nombre: e.target.value };
+                          setEditingServicio({ ...editingServicio, documentosConfig: updated });
+                        }}
+                        style={{ flex: 1, padding: '10px 12px', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: '#fff', fontSize: '13px', outline: 'none' }}
+                      />
+                      <input
+                        type="text"
+                        placeholder="Características (ej. Copia legible)"
+                        value={doc.caracteristicas}
+                        onChange={(e) => {
+                          const updated = [...(editingServicio.documentosConfig || [])];
+                          updated[idx] = { ...updated[idx], caracteristicas: e.target.value };
+                          setEditingServicio({ ...editingServicio, documentosConfig: updated });
+                        }}
+                        style={{ flex: 1, padding: '10px 12px', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: '#fff', fontSize: '13px', outline: 'none' }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const updated = (editingServicio.documentosConfig || []).filter((_: any, i: number) => i !== idx);
+                          setEditingServicio({ ...editingServicio, documentosConfig: updated });
+                        }}
+                        style={{ background: 'rgba(239,68,68,0.15)', border: 'none', borderRadius: '8px', padding: '10px', cursor: 'pointer', color: '#ef4444', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                      >
+                        <Trash2 size={16} />
                       </button>
-                    );
-                  })}
+                    </div>
+                  ))}
                 </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEditingServicio({
+                      ...editingServicio,
+                      documentosConfig: [...(editingServicio.documentosConfig || []), { nombre: '', caracteristicas: '' }]
+                    });
+                  }}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '8px 16px', background: 'rgba(59,130,246,0.15)', border: '1px dashed rgba(59,130,246,0.4)', borderRadius: '8px', color: '#60a5fa', fontSize: '12px', fontWeight: '600', cursor: 'pointer', transition: 'all 0.2s' }}
+                >
+                  <Plus size={14} /> Agregar Documento
+                </button>
               </div>
               <div>
                 <label style={{ fontSize: '12px', fontWeight: '600', color: 'rgba(255,255,255,0.6)', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block', marginBottom: '10px' }}>Materiales y Guías Incluidos</label>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                  {MATERIALES_OPCIONES.map(material => {
-                    const checked = (editingServicio.materiales || []).includes(material);
-                    return (
-                      <button key={material} type="button" onClick={() => toggleMaterialServicio(material, true)}
-                        style={{ padding: '6px 12px', borderRadius: '20px', border: `1px solid ${checked ? '#3b82f6' : 'rgba(255,255,255,0.15)'}`, background: checked ? 'rgba(59,130,246,0.15)' : 'rgba(255,255,255,0.05)', color: checked ? '#3b82f6' : 'rgba(255,255,255,0.6)', fontSize: '12px', fontWeight: '500', cursor: 'pointer', transition: 'all 0.2s', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                        {checked && <Check size={11} />}{material}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '12px' }}>
+                  {(editingServicio.materialesConfig || []).map((mat: any, idx: number) => (
+                    <div key={idx} style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                      <input
+                        type="text"
+                        required
+                        placeholder="Material (ej. Guía de Estudios)"
+                        value={mat.nombre}
+                        onChange={(e) => {
+                          const updated = [...(editingServicio.materialesConfig || [])];
+                          updated[idx] = { ...updated[idx], nombre: e.target.value };
+                          setEditingServicio({ ...editingServicio, materialesConfig: updated });
+                        }}
+                        style={{ flex: 1, padding: '10px 12px', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: '#fff', fontSize: '13px', outline: 'none' }}
+                      />
+                      <input
+                        type="text"
+                        placeholder="Características (ej. Formato PDF o Impreso)"
+                        value={mat.caracteristicas}
+                        onChange={(e) => {
+                          const updated = [...(editingServicio.materialesConfig || [])];
+                          updated[idx] = { ...updated[idx], caracteristicas: e.target.value };
+                          setEditingServicio({ ...editingServicio, materialesConfig: updated });
+                        }}
+                        style={{ flex: 1, padding: '10px 12px', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: '#fff', fontSize: '13px', outline: 'none' }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const updated = (editingServicio.materialesConfig || []).filter((_: any, i: number) => i !== idx);
+                          setEditingServicio({ ...editingServicio, materialesConfig: updated });
+                        }}
+                        style={{ background: 'rgba(239,68,68,0.15)', border: 'none', borderRadius: '8px', padding: '10px', cursor: 'pointer', color: '#ef4444', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                      >
+                        <Trash2 size={16} />
                       </button>
-                    );
-                  })}
+                    </div>
+                  ))}
                 </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEditingServicio({
+                      ...editingServicio,
+                      materialesConfig: [...(editingServicio.materialesConfig || []), { nombre: '', caracteristicas: '' }]
+                    });
+                  }}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '8px 16px', background: 'rgba(59,130,246,0.15)', border: '1px dashed rgba(59,130,246,0.4)', borderRadius: '8px', color: '#60a5fa', fontSize: '12px', fontWeight: '600', cursor: 'pointer', transition: 'all 0.2s' }}
+                >
+                  <Plus size={14} /> Agregar Material
+                </button>
               </div>
               <div>
                 <label style={{ fontSize: '12px', fontWeight: '600', color: 'rgba(255,255,255,0.6)', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block', marginBottom: '8px' }}>Proceso de Entrega</label>

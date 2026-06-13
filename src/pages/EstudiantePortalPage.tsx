@@ -521,6 +521,15 @@ export default function EstudiantePortalPage() {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                   {activeStudent.documents.map((doc, idx) => {
                     const isUploaded = doc.status === 'Subido' || doc.status === 'Verificado';
+                    
+                    // Match student service to look up document characteristics
+                    const studentService = servicios.find((s: any) => 
+                      activeStudent?.curso?.toLowerCase().includes(s.nombre.toLowerCase()) ||
+                      s.nombre.toLowerCase().includes(activeStudent?.curso?.replace('Ingreso ', '')?.toLowerCase())
+                    );
+                    const matchedDocConfig = studentService?.documentosConfig?.find((d: any) => d.nombre === doc.name);
+                    const characteristics = matchedDocConfig?.caracteristicas || '';
+
                     return (
                       <div
                         key={idx}
@@ -535,9 +544,16 @@ export default function EstudiantePortalPage() {
                           border: '1px solid rgba(255,255,255,0.03)'
                         }}
                       >
-                        <span style={{ fontSize: '13px', color: '#ffffff', fontWeight: '500' }}>
-                          {doc.name}
-                        </span>
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', textAlign: 'left' }}>
+                          <span style={{ fontSize: '13px', color: '#ffffff', fontWeight: '500' }}>
+                            {doc.name}
+                          </span>
+                          {characteristics && (
+                            <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)', marginTop: '2px' }}>
+                              {characteristics}
+                            </span>
+                          )}
+                        </div>
 
                         <span style={{
                           fontSize: '11px',
@@ -590,6 +606,9 @@ export default function EstudiantePortalPage() {
                         else if (material.includes('Examen')) size = '1.1 MB';
                         else if (material.includes('COMIPEMS')) size = '3.2 MB';
 
+                        const matchedMatConfig = matchingServicio?.materialesConfig?.find((m: any) => m.nombre === material);
+                        const characteristics = matchedMatConfig?.caracteristicas || '';
+
                         const bgIcon = idx % 2 === 0 ? 'rgba(234, 179, 8, 0.1)' : 'rgba(59, 130, 246, 0.1)';
                         const colorIcon = idx % 2 === 0 ? '#ca8a04' : '#2563eb';
 
@@ -612,11 +631,17 @@ export default function EstudiantePortalPage() {
                               <BookOpen size={16} />
                             </div>
                             <div style={{ flex: 1, minWidth: 0 }}>
-                              <div style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                              <div style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={material}>
                                 {material}
                               </div>
-                              <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '2px' }}>
-                                PDF • {size}
+                              <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '2px', display: 'flex', flexWrap: 'wrap', gap: '4px', alignItems: 'center' }}>
+                                <span>PDF • {size}</span>
+                                {characteristics && (
+                                  <>
+                                    <span>•</span>
+                                    <span style={{ color: 'var(--brand-blue, #2563eb)' }}>{characteristics}</span>
+                                  </>
+                                )}
                               </div>
                             </div>
                             <button
