@@ -3,7 +3,7 @@ import { useEffect } from 'react';
 import {
   LayoutDashboard, Users, CreditCard, GraduationCap,
   MessageSquare, Search, Smartphone, Bell,
-  ClipboardList, Settings, Link2, Briefcase, HeartHandshake
+  ClipboardList, Settings, Link2, Briefcase, HeartHandshake, LifeBuoy
 } from 'lucide-react';
 import { useAppStore } from '../store/useAppStore';
 
@@ -26,6 +26,7 @@ export default function MainLayout() {
     if (path === '/finanzas') return 'Finanzas';
     if (path === '/academico') return 'Académico';
     if (path === '/comunicacion') return 'Comunicación';
+    if (path === '/tickets') return 'Soporte y Tickets';
     if (path === '/categorias') return 'Categorías Financieras';
     if (path === '/enlaces') return 'Asignación de Costos';
     if (path === '/servicios') return 'Catálogo de Servicios';
@@ -65,6 +66,7 @@ export default function MainLayout() {
             { name: 'Académico', path: '/academico', icon: GraduationCap },
             { name: 'Exámenes', path: '/examen', icon: ClipboardList },
             { name: 'Comunicación', path: '/comunicacion', icon: MessageSquare },
+            { name: 'Soporte y Tickets', path: '/tickets', icon: LifeBuoy },
           ].map((item) => (
             <NavLink
               key={item.name}

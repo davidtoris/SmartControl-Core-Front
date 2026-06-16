@@ -44,6 +44,40 @@ export interface ExamAttempt {
   }[];
 }
 
+export interface TicketMessage {
+  id: string;
+  ticketId: string;
+  usuarioId?: string | null;
+  alumnoId?: string | null;
+  remitenteTipo: 'ADMIN' | 'ALUMNO';
+  remitenteNombre: string;
+  contenido: string;
+  createdAt: string;
+}
+
+export interface Ticket {
+  id: string;
+  folio: string;
+  asunto: string;
+  descripcion: string;
+  categoria: string;
+  status: 'ABIERTO' | 'EN_PROCESO' | 'RESUELTO' | 'CERRADO';
+  prioridad: 'BAJA' | 'MEDIA' | 'ALTA';
+  tipoTicket: 'ADMINISTRATIVO' | 'ESTUDIANTE';
+  adjuntoUrl?: string | null;
+  creatorUsuarioId?: string | null;
+  creatorUsuario?: { id: string; nombre: string; email: string } | null;
+  creatorAlumnoId?: string | null;
+  creatorAlumno?: { id: string | number; nombre: string; curso: string } | null;
+  responsableUsuarioId?: string | null;
+  responsableUsuario?: { id: string; nombre: string } | null;
+  closedByUsuarioId?: string | null;
+  closedByUsuario?: { id: string; nombre: string } | null;
+  mensajes: TicketMessage[];
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface Student {
   id: number | string;
   name: string;
@@ -61,7 +95,7 @@ export interface Student {
     planPagosRealizados?: number;
     planPagosTotales?: number;
   };
-  documents: { name: string; status: string; url?: string }[];
+  documents: { name: string; status: string; url?: string; comentario?: string }[];
   exams?: { name: string; score: number; max: number; date: string; details: string }[];
   examAttempts?: ExamAttempt[];
   attendance?: {
@@ -91,6 +125,7 @@ export interface Student {
     fechaVencimiento: string;
     status: string;
     fechaPago?: string | null;
+    comprobanteUrl?: string | null;
   }[];
 }
 
@@ -240,7 +275,7 @@ interface AppState {
   fetchTransactions: () => Promise<void>;
   addStudent: (student: any) => Promise<void>;
   addTransaction: (transaction: Transaction) => void;
-  recordStudentPayment: (studentId: number | string, amount: number) => Promise<string | null>;
+  recordStudentPayment: (studentId: number | string, amount: number, comprobanteUrl?: string) => Promise<string | null>;
   updateStudentTracking: (studentId: number | string, fields: Partial<Student>) => Promise<void>;
   addExamAttempt: (studentId: number | string, attempt: ExamAttempt) => Promise<void>;
   
@@ -312,6 +347,30 @@ interface AppState {
 
   // Asistencia Escolar
   saveBatchAttendance: (date: string, records: Record<string, 'Presente' | 'Falta' | 'Retardo'>) => Promise<void>;
+
+  // Soporte y Tickets
+  tickets: Ticket[];
+  activeTicket: Ticket | null;
+  studentTickets: Ticket[];
+  fetchTickets: (filters?: { tipoTicket?: string; status?: string; categoria?: string }) => Promise<void>;
+  fetchStudentTickets: (studentId: string | number) => Promise<void>;
+  createTicket: (payload: {
+    asunto: string;
+    descripcion: string;
+    categoria: string;
+    prioridad?: string;
+    tipoTicket: 'ADMINISTRATIVO' | 'ESTUDIANTE';
+    creatorAlumnoId?: string | number | null;
+    adjuntoUrl?: string | null;
+  }) => Promise<Ticket>;
+  replyTicket: (payload: {
+    ticketId: string;
+    contenido: string;
+    remitenteTipo: 'ADMIN' | 'ALUMNO';
+    remitenteNombre: string;
+    alumnoId?: string | number | null;
+  }) => Promise<TicketMessage>;
+  updateTicketStatus: (ticketId: string, status?: string, prioridad?: string, responsableUsuarioId?: string | null) => Promise<void>;
 }
 
 
@@ -795,6 +854,11 @@ export const useAppStore = create<AppState>((set) => {
     exams: finalExams,
     prospects: finalProspects,
 
+    // Soporte y Tickets
+    tickets: [],
+    activeTicket: null,
+    studentTickets: [],
+
   // Acciones de Datos
   fetchStudents: async () => {
     try {
@@ -912,9 +976,9 @@ export const useAppStore = create<AppState>((set) => {
     }
   },
   
-  recordStudentPayment: async (studentId, amount) => {
+  recordStudentPayment: async (studentId, amount, comprobanteUrl) => {
     try {
-      const response = await apiClient.post(`/alumnos/${studentId}/pagos`, { amount });
+      const response = await apiClient.post(`/alumnos/${studentId}/pagos`, { amount, comprobanteUrl });
       // Sincronizar listados
       await useAppStore.getState().fetchStudents();
       await useAppStore.getState().fetchTransactions();
@@ -1478,6 +1542,128 @@ export const useAppStore = create<AppState>((set) => {
     localStorage.setItem('crece_crm_prospects', JSON.stringify(updated));
     return { prospects: updated };
   }),
+
+  // Soporte y Tickets Acciones
+  fetchTickets: async (filters) => {
+    try {
+      let queryStr = '';
+      if (filters) {
+        const params = new URLSearchParams();
+        if (filters.tipoTicket) params.append('tipoTicket', filters.tipoTicket);
+        if (filters.status) params.append('status', filters.status);
+        if (filters.categoria) params.append('categoria', filters.categoria);
+        queryStr = `?${params.toString()}`;
+      }
+      const response = await apiClient.get(`/tickets${queryStr}`);
+      set({ tickets: response.data });
+      // Si hay un ticket activo seleccionado, refrescar sus detalles
+      const active = useAppStore.getState().activeTicket;
+      if (active) {
+        const refreshed = response.data.find((t: any) => t.id === active.id);
+        if (refreshed) {
+          set({ activeTicket: refreshed });
+        }
+      }
+    } catch (error) {
+      console.error('Error al cargar tickets:', error);
+    }
+  },
+
+  fetchStudentTickets: async (studentId) => {
+    try {
+      const response = await apiClient.get(`/tickets/alumno/${studentId}`);
+      set({ studentTickets: response.data });
+    } catch (error) {
+      console.error('Error al cargar tickets del alumno:', error);
+    }
+  },
+
+  createTicket: async (payload) => {
+    try {
+      const response = await apiClient.post('/tickets', payload);
+      const newTicket = response.data;
+      
+      set((state) => ({
+        tickets: [newTicket, ...state.tickets],
+        studentTickets: payload.tipoTicket === 'ESTUDIANTE' ? [newTicket, ...state.studentTickets] : state.studentTickets
+      }));
+      
+      return newTicket;
+    } catch (error) {
+      console.error('Error al crear ticket:', error);
+      throw error;
+    }
+  },
+
+  replyTicket: async (payload) => {
+    try {
+      const { ticketId, ...replyBody } = payload;
+      const response = await apiClient.post(`/tickets/${ticketId}/reply`, replyBody);
+      const newMsg = response.data;
+
+      set((state) => {
+        const updateTicketList = (list: Ticket[]) => 
+          list.map(t => {
+            if (t.id === ticketId) {
+              const updatedMsg = [...(t.mensajes || []), newMsg];
+              return { ...t, mensajes: updatedMsg, updatedAt: new Date().toISOString() };
+            }
+            return t;
+          });
+
+        const updatedTickets = updateTicketList(state.tickets);
+        const updatedStudentTickets = updateTicketList(state.studentTickets);
+        
+        let updatedActiveTicket = state.activeTicket;
+        if (updatedActiveTicket && updatedActiveTicket.id === ticketId) {
+          updatedActiveTicket = {
+            ...updatedActiveTicket,
+            mensajes: [...(updatedActiveTicket.mensajes || []), newMsg],
+            updatedAt: new Date().toISOString()
+          };
+        }
+
+        return {
+          tickets: updatedTickets,
+          studentTickets: updatedStudentTickets,
+          activeTicket: updatedActiveTicket
+        };
+      });
+
+      return newMsg;
+    } catch (error) {
+      console.error('Error al responder ticket:', error);
+      throw error;
+    }
+  },
+
+  updateTicketStatus: async (ticketId, status, prioridad, responsableUsuarioId) => {
+    try {
+      const response = await apiClient.put(`/tickets/${ticketId}/status`, { status, prioridad, responsableUsuarioId });
+      const updatedTicket = response.data;
+
+      set((state) => {
+        const updateTicketList = (list: Ticket[]) => 
+          list.map(t => (t.id === ticketId ? updatedTicket : t));
+
+        const updatedTickets = updateTicketList(state.tickets);
+        const updatedStudentTickets = updateTicketList(state.studentTickets);
+
+        let updatedActiveTicket = state.activeTicket;
+        if (updatedActiveTicket && updatedActiveTicket.id === ticketId) {
+          updatedActiveTicket = updatedTicket;
+        }
+
+        return {
+          tickets: updatedTickets,
+          studentTickets: updatedStudentTickets,
+          activeTicket: updatedActiveTicket
+        };
+      });
+    } catch (error) {
+      console.error('Error al actualizar estado del ticket:', error);
+    }
+  },
 };
 });
 

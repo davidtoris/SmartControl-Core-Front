@@ -4,13 +4,14 @@ import {
   TrendingUp, Wallet, Calendar, CheckCircle2,
   AlertCircle, Clipboard, Play, LogOut, Target, ChevronRight,
   BookOpen, Clock, FileCheck, ArrowLeft, MessageSquare, Mail, Eye, Sparkles,
-  Sun, Moon, Download
+  Sun, Moon, Download, Upload, LifeBuoy, Send, Plus
 } from 'lucide-react';
 import { useAppStore } from '../store/useAppStore';
-import type { Student, ExamAttempt } from '../store/useAppStore';
+import type { Student, ExamAttempt, Ticket, TicketMessage } from '../store/useAppStore';
 import {
   ResponsiveContainer, AreaChart, Area, CartesianGrid, XAxis, YAxis, Tooltip, ReferenceLine
 } from 'recharts';
+import apiClient from '../api/apiClient';
 
 export default function EstudiantePortalPage() {
   const navigate = useNavigate();
@@ -21,8 +22,35 @@ export default function EstudiantePortalPage() {
     servicios, 
     fetchStudents, 
     fetchServicios,
-    fetchStudentMessages 
+    fetchStudentMessages,
+    studentTickets,
+    fetchStudentTickets,
+    createTicket,
+    replyTicket
   } = useAppStore();
+
+  const [activeStudentId, setActiveStudentId] = useState<string | number | null>(() => {
+    const searchParams = new URLSearchParams(window.location.search);
+    const paramId = searchParams.get('studentId');
+    if (paramId) {
+      return isNaN(Number(paramId)) ? paramId : Number(paramId);
+    }
+    return null;
+  });
+
+  const [feedback, setFeedback] = useState<{ message: string; type: 'success' | 'error' | null }>({
+    message: '',
+    type: null
+  });
+
+  useEffect(() => {
+    if (feedback.message) {
+      const timer = setTimeout(() => {
+        setFeedback({ message: '', type: null });
+      }, 4000);
+      return () => clearTimeout(timer);
+    }
+  }, [feedback.message]);
 
   useEffect(() => {
     if (students.length === 0) {
@@ -33,20 +61,34 @@ export default function EstudiantePortalPage() {
     }
   }, [students.length, servicios.length, fetchStudents, fetchServicios]);
 
+  // Estado para la columna derecha (Comunicados vs Soporte)
+  const [rightPanelTab, setRightPanelTab] = useState<'comunicados' | 'tickets'>('comunicados');
+  const [selectedPortalTicketId, setSelectedPortalTicketId] = useState<string | null>(null);
+  const [showNewTicketForm, setShowNewTicketForm] = useState<boolean>(false);
+
+  // Formulario Nuevo Ticket Estudiante
+  const [ticketAsunto, setTicketAsunto] = useState('');
+  const [ticketDescripcion, setTicketDescripcion] = useState('');
+  const [ticketCategoria, setTicketCategoria] = useState('Soporte');
+  const [ticketPrioridad, setTicketPrioridad] = useState('MEDIA');
+  const [ticketFile, setTicketFile] = useState<File | null>(null);
+  const [isSavingTicket, setIsSavingTicket] = useState(false);
+
+  // Respuesta a Ticket Estudiante
+  const [ticketReplyText, setTicketReplyText] = useState('');
+  const [isReplyingTicket, setIsReplyingTicket] = useState(false);
+
   useEffect(() => {
     if (activeStudentId) {
       fetchStudentMessages(activeStudentId);
     }
   }, [activeStudentId, fetchStudentMessages]);
 
-  const [activeStudentId, setActiveStudentId] = useState<string | number | null>(() => {
-    const searchParams = new URLSearchParams(window.location.search);
-    const paramId = searchParams.get('studentId');
-    if (paramId) {
-      return isNaN(Number(paramId)) ? paramId : Number(paramId);
+  useEffect(() => {
+    if (activeStudentId && rightPanelTab === 'tickets') {
+      fetchStudentTickets(activeStudentId);
     }
-    return null;
-  });
+  }, [activeStudentId, rightPanelTab, fetchStudentTickets]);
 
   // Tema Claro / Oscuro (con persistencia)
   const [isDarkMode, setIsDarkMode] = useState(() => {
@@ -73,6 +115,164 @@ export default function EstudiantePortalPage() {
 
   // Alumno logueado actualmente
   const activeStudent = students.find(s => s.id === activeStudentId);
+
+  const [uploadingDocs, setUploadingDocs] = useState<Record<string, boolean>>({});
+
+  const handleCreateTicketSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!activeStudent) return;
+    if (!ticketAsunto.trim() || !ticketDescripcion.trim()) {
+      setFeedback({ message: 'Por favor completa el asunto y la descripción de la solicitud.', type: 'error' });
+      return;
+    }
+
+    setIsSavingTicket(true);
+    let adjuntoUrl: string | null = null;
+    try {
+      if (ticketFile) {
+        const formData = new FormData();
+        formData.append('file', ticketFile);
+        formData.append('folder', `tickets/adjuntos`);
+        const cleanName = ticketFile.name.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase();
+        formData.append('fileName', `${cleanName}-${Date.now()}`);
+
+        const uploadRes = await apiClient.post('/uploads/public', formData, {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        });
+        adjuntoUrl = uploadRes.data.url;
+      }
+
+      await createTicket({
+        asunto: ticketAsunto.trim(),
+        descripcion: ticketDescripcion.trim(),
+        categoria: ticketCategoria,
+        prioridad: ticketPrioridad,
+        tipoTicket: 'ESTUDIANTE',
+        creatorAlumnoId: activeStudent.id,
+        adjuntoUrl
+      });
+
+      setFeedback({ message: '¡Tu solicitud de soporte ha sido enviada con éxito! 🎫', type: 'success' });
+      setShowNewTicketForm(false);
+      
+      // Limpiar Formulario
+      setTicketAsunto('');
+      setTicketDescripcion('');
+      setTicketCategoria('Soporte');
+      setTicketPrioridad('MEDIA');
+      setTicketFile(null);
+
+      // Recargar
+      if (activeStudentId) {
+        await fetchStudentTickets(activeStudentId);
+      }
+    } catch (error) {
+      console.error(error);
+      setFeedback({ message: 'Error al enviar la solicitud de soporte.', type: 'error' });
+    } finally {
+      setIsSavingTicket(false);
+    }
+  };
+
+  const handleSendTicketReply = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedPortalTicketId || !ticketReplyText.trim()) return;
+
+    setIsReplyingTicket(true);
+    try {
+      await replyTicket({
+        ticketId: selectedPortalTicketId,
+        contenido: ticketReplyText.trim(),
+        remitenteTipo: 'ALUMNO',
+        remitenteNombre: activeStudent?.name || 'Estudiante'
+      });
+      setTicketReplyText('');
+      setFeedback({ message: 'Mensaje enviado.', type: 'success' });
+      
+      // Recargar tickets del alumno para actualizar la conversación
+      if (activeStudentId) {
+        await fetchStudentTickets(activeStudentId);
+      }
+    } catch (error) {
+      console.error(error);
+      setFeedback({ message: 'Error al enviar el mensaje.', type: 'error' });
+    } finally {
+      setIsReplyingTicket(false);
+    }
+  };
+
+  const handleViewDocument = async (url?: string) => {
+    if (!url) {
+      setFeedback({ message: 'No se encontró la URL del documento.', type: 'error' });
+      return;
+    }
+    try {
+      if (url.startsWith('http') && url.includes('amazonaws.com') && !url.includes('Signature=')) {
+        const res = await apiClient.get(`/uploads/presigned?url=${encodeURIComponent(url)}`);
+        window.open(res.data.url, '_blank');
+      } else {
+        window.open(url, '_blank');
+      }
+    } catch (err) {
+      console.error('Error al firmar URL:', err);
+      window.open(url, '_blank');
+    }
+  };
+
+  const handleUploadDocument = async (docName: string, file: File) => {
+    if (!activeStudent) return;
+
+    // Validar límite de 5MB
+    if (file.size > 5 * 1024 * 1024) {
+      setFeedback({ message: 'El archivo supera el límite de 5MB.', type: 'error' });
+      return;
+    }
+
+    try {
+      setUploadingDocs(prev => ({ ...prev, [docName]: true }));
+
+      // 1. Subir archivo a S3 en la carpeta del alumno
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('folder', `alumnos/id/${activeStudent.id}/documentos`);
+
+      const cleanDocName = docName.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase();
+      const targetName = `${cleanDocName}-${Date.now()}`;
+      formData.append('fileName', targetName);
+
+      const uploadRes = await apiClient.post('/uploads/public', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
+      });
+      const uploadedUrl = uploadRes.data.url;
+
+      // Construir la nueva lista de documentos y limpiar comentarios
+      const updatedDocs = (activeStudent.documents || []).map((d: any) => {
+        if (d.name === docName) {
+          return { ...d, status: 'Subido', url: uploadedUrl, comentario: null };
+        }
+        return d;
+      });
+
+      // Si por alguna razón el documento no estaba en la lista requerida del alumno, lo agregamos
+      if (!updatedDocs.find((d: any) => d.name === docName)) {
+        updatedDocs.push({ name: docName, status: 'Subido', url: uploadedUrl, comentario: null });
+      }
+
+      // Actualizar a través del Zustand Store
+      await useAppStore.getState().updateStudentTracking(activeStudent.id, {
+        documents: updatedDocs
+      });
+
+      setFeedback({ message: `¡Documento "${docName}" subido con éxito! 📄`, type: 'success' });
+    } catch (err) {
+      console.error('Error al subir el documento:', err);
+      setFeedback({ message: 'Error al subir el archivo. Intente de nuevo.', type: 'error' });
+    } finally {
+      setUploadingDocs(prev => ({ ...prev, [docName]: false }));
+    }
+  };
 
   // Filtrar mensajes del alumno activo
   const activeStudentMessages = studentMessages.filter(msg => msg.studentId === activeStudentId);
@@ -112,6 +312,8 @@ export default function EstudiantePortalPage() {
       maxPosible: attempt.max
     }));
   };
+
+  const selectedTicket = studentTickets.find(t => t.id === selectedPortalTicketId);
 
   return (
     <div className={`portal-container ${isDarkMode ? 'dark-theme' : 'light-theme'}`} style={{
@@ -520,7 +722,7 @@ export default function EstudiantePortalPage() {
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                   {activeStudent.documents.map((doc, idx) => {
-                    const isUploaded = doc.status === 'Subido' || doc.status === 'Verificado';
+                    const showUploadButton = doc.status === 'Rechazado' || doc.status === 'Faltante' || !doc.status;
                     
                     // Match student service to look up document characteristics
                     const studentService = servicios.find((s: any) => 
@@ -544,7 +746,7 @@ export default function EstudiantePortalPage() {
                           border: '1px solid rgba(255,255,255,0.03)'
                         }}
                       >
-                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', textAlign: 'left' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', textAlign: 'left', flex: 1, marginRight: '16px' }}>
                           <span style={{ fontSize: '13px', color: '#ffffff', fontWeight: '500' }}>
                             {doc.name}
                           </span>
@@ -553,18 +755,131 @@ export default function EstudiantePortalPage() {
                               {characteristics}
                             </span>
                           )}
+                          {doc.status === 'Rechazado' && doc.comentario && (
+                            <span style={{ fontSize: '11px', color: '#f87171', marginTop: '4px', fontWeight: '500', display: 'block' }}>
+                              Motivo de rechazo: {doc.comentario}
+                            </span>
+                          )}
                         </div>
 
-                        <span style={{
-                          fontSize: '11px',
-                          fontWeight: '600',
-                          padding: '2px 8px',
-                          borderRadius: '100px',
-                          background: isUploaded ? 'rgba(16, 185, 129, 0.12)' : 'rgba(239, 68, 68, 0.1)',
-                          color: isUploaded ? '#34d399' : '#f87171'
-                        }}>
-                          {isUploaded ? 'Recibido ✓' : 'Pendiente ❌'}
-                        </span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+                          {doc.url && (
+                            <button
+                              type="button"
+                              onClick={() => handleViewDocument(doc.url)}
+                              title="Ver documento"
+                              style={{
+                                background: 'rgba(255, 255, 255, 0.03)',
+                                border: '1px solid rgba(255, 255, 255, 0.1)',
+                                borderRadius: '8px',
+                                color: '#34d399',
+                                cursor: 'pointer',
+                                padding: '4px 8px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: '4px'
+                              }}
+                            >
+                              <Eye size={12} />
+                            </button>
+                          )}
+
+                          {showUploadButton && (
+                            <>
+                              <input 
+                                type="file"
+                                id={`student-doc-file-${idx}`}
+                                accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                                style={{ display: 'none' }}
+                                onChange={(e) => {
+                                  const file = e.target.files?.[0];
+                                  if (file) {
+                                    handleUploadDocument(doc.name, file);
+                                  }
+                                }}
+                              />
+                              {uploadingDocs[doc.name] ? (
+                                <span style={{ fontSize: '11px', color: '#60a5fa', fontWeight: '500' }}>
+                                  Subiendo...
+                                </span>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => document.getElementById(`student-doc-file-${idx}`)?.click()}
+                                  style={{
+                                    background: 'rgba(59, 130, 246, 0.15)',
+                                    border: '1px solid rgba(59, 130, 246, 0.3)',
+                                    borderRadius: '8px',
+                                    color: '#60a5fa',
+                                    fontSize: '11px',
+                                    fontWeight: '600',
+                                    padding: '4px 10px',
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '4px'
+                                  }}
+                                >
+                                  <Upload size={12} /> Subir
+                                </button>
+                              )}
+                            </>
+                          )}
+
+                          {/* Badge de Estatus */}
+                          {doc.status === 'Verificado' && (
+                            <span style={{
+                              fontSize: '11px',
+                              fontWeight: '600',
+                              padding: '2px 8px',
+                              borderRadius: '100px',
+                              background: 'rgba(16, 185, 129, 0.12)',
+                              color: '#34d399'
+                            }}>
+                              Verificado ✓
+                            </span>
+                          )}
+
+                          {doc.status === 'Subido' && (
+                            <span style={{
+                              fontSize: '11px',
+                              fontWeight: '600',
+                              padding: '2px 8px',
+                              borderRadius: '100px',
+                              background: 'rgba(59, 130, 246, 0.12)',
+                              color: '#60a5fa'
+                            }}>
+                              En Revisión ⏳
+                            </span>
+                          )}
+
+                          {doc.status === 'Rechazado' && (
+                            <span style={{
+                              fontSize: '11px',
+                              fontWeight: '600',
+                              padding: '2px 8px',
+                              borderRadius: '100px',
+                              background: 'rgba(239, 68, 68, 0.12)',
+                              color: '#f87171'
+                            }}>
+                              Rechazado ❌
+                            </span>
+                          )}
+
+                          {(doc.status === 'Faltante' || !doc.status) && (
+                            <span style={{
+                              fontSize: '11px',
+                              fontWeight: '600',
+                              padding: '2px 8px',
+                              borderRadius: '100px',
+                              background: 'rgba(156, 163, 175, 0.12)',
+                              color: '#9ca3af'
+                            }}>
+                              Pendiente ❌
+                            </span>
+                          )}
+                        </div>
                       </div>
                     );
                   })}
@@ -578,8 +893,9 @@ export default function EstudiantePortalPage() {
                 </h3>
 
                 {(() => {
-                  const matchingServicio = servicios.find(s =>
-                    s.nombre.toLowerCase().trim() === activeStudent.curso.toLowerCase().trim()
+                  const matchingServicio = servicios.find((s: any) => 
+                    activeStudent?.curso?.toLowerCase().includes(s.nombre.toLowerCase()) ||
+                    s.nombre.toLowerCase().includes(activeStudent?.curso?.replace('Ingreso ', '')?.toLowerCase())
                   );
                   const materiales = matchingServicio?.materiales || [];
 
@@ -608,6 +924,7 @@ export default function EstudiantePortalPage() {
 
                         const matchedMatConfig = matchingServicio?.materialesConfig?.find((m: any) => m.nombre === material);
                         const characteristics = matchedMatConfig?.caracteristicas || '';
+                        const fileUrl = matchedMatConfig?.url || null;
 
                         const bgIcon = idx % 2 === 0 ? 'rgba(234, 179, 8, 0.1)' : 'rgba(59, 130, 246, 0.1)';
                         const colorIcon = idx % 2 === 0 ? '#ca8a04' : '#2563eb';
@@ -646,20 +963,25 @@ export default function EstudiantePortalPage() {
                             </div>
                             <button
                               onClick={() => {
-                                alert(`Descargando: ${material}\nTu material se guardará en tu carpeta de descargas de forma segura.`);
+                                if (fileUrl) {
+                                  window.open(fileUrl, '_blank');
+                                } else {
+                                  setFeedback({ message: 'Este material de estudio se encuentra en preparación. Por favor, solicítalo en coordinación académica o inténtalo más tarde.', type: 'error' });
+                                }
                               }}
                               style={{
                                 background: 'transparent',
-                                border: '1.5px solid var(--brand-blue, #2563eb)',
+                                border: `1.5px solid ${fileUrl ? 'var(--brand-blue, #2563eb)' : 'var(--text-secondary, #94a3b8)'}`,
                                 borderRadius: '8px',
-                                color: 'var(--brand-blue, #2563eb)',
-                                cursor: 'pointer',
+                                color: fileUrl ? 'var(--brand-blue, #2563eb)' : 'var(--text-secondary, #94a3b8)',
+                                cursor: fileUrl ? 'pointer' : 'not-allowed',
                                 padding: '6px',
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
                                 transition: 'all 0.2s ease-in-out'
                               }}
+                              title={fileUrl ? "Descargar / Ver material" : "Archivo no disponible"}
                             >
                               <Download size={14} />
                             </button>
@@ -827,133 +1149,610 @@ export default function EstudiantePortalPage() {
 
             </div>
 
-            {/* ================= COLUMNA 3 (DERECHA): MENSAJES CRECE ================= */}
+            {/* ================= COLUMNA 3 (DERECHA): MENSAJES Y SOPORTE ================= */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', minWidth: 0 }}>
 
               <div className="glass-card" style={{ padding: '20px', display: 'flex', flexDirection: 'column', height: '100%' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', paddingBottom: '10px', borderBottom: '1px solid var(--inner-card-border)' }}>
-                  <h4 style={{ fontSize: '14px', fontWeight: '700', color: 'var(--text-primary)', margin: 0, display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <MessageSquare size={16} color="var(--text-secondary, #3b82f6)" /> Mensajes CRECE
-                  </h4>
+                {/* TABS SELECTOR */}
+                <div style={{ display: 'flex', gap: '8px', borderBottom: '1px solid var(--inner-card-border)', paddingBottom: '12px', marginBottom: '16px' }}>
+                  <button
+                    onClick={() => {
+                      setRightPanelTab('comunicados');
+                      setSelectedPortalTicketId(null);
+                      setShowNewTicketForm(false);
+                    }}
+                    style={{
+                      flex: 1,
+                      padding: '10px',
+                      background: rightPanelTab === 'comunicados' ? 'var(--inner-card-bg)' : 'transparent',
+                      border: '1px solid ' + (rightPanelTab === 'comunicados' ? 'var(--inner-card-border)' : 'transparent'),
+                      borderRadius: '12px',
+                      color: rightPanelTab === 'comunicados' ? 'var(--text-primary)' : 'var(--text-muted)',
+                      fontSize: '13px',
+                      fontWeight: '700',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '6px',
+                      transition: 'all 0.2s'
+                    }}
+                  >
+                    <MessageSquare size={15} />
+                    <span>Avisos</span>
+                  </button>
 
-                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                    {unreadMessagesCount > 0 && (
-                      <span style={{
-                        fontSize: '10px',
-                        background: '#ef4444',
-                        color: 'white',
-                        padding: '2px 8px',
-                        borderRadius: '100px',
-                        fontWeight: '700',
-                        animation: 'pulse-badge 2s infinite'
-                      }}>
-                        {unreadMessagesCount} nuevo{unreadMessagesCount > 1 ? 's' : ''}
-                      </span>
-                    )}
-                  </div>
+                  <button
+                    onClick={() => {
+                      setRightPanelTab('tickets');
+                    }}
+                    style={{
+                      flex: 1,
+                      padding: '10px',
+                      background: rightPanelTab === 'tickets' ? 'var(--inner-card-bg)' : 'transparent',
+                      border: '1px solid ' + (rightPanelTab === 'tickets' ? 'var(--inner-card-border)' : 'transparent'),
+                      borderRadius: '12px',
+                      color: rightPanelTab === 'tickets' ? 'var(--text-primary)' : 'var(--text-muted)',
+                      fontSize: '13px',
+                      fontWeight: '700',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '6px',
+                      transition: 'all 0.2s'
+                    }}
+                  >
+                    <LifeBuoy size={15} />
+                    <span>Soporte y Tickets</span>
+                  </button>
                 </div>
 
-                {/* Feed scrollable con altura maximizada para aprovechar la columna */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', overflowY: 'auto', maxHeight: '580px', paddingRight: '2px' }}>
-                  {activeStudentMessages.length > 0 ? (
-                    activeStudentMessages.map(msg => {
-                      const isUnread = !msg.readAt;
-                      const isExpanded = expandedMessageId === msg.id;
+                {rightPanelTab === 'comunicados' ? (
+                  /* VISTA COMUNICADOS */
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', flex: 1 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                      <span style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: '600' }}>Bandeja de Entrada</span>
+                      {unreadMessagesCount > 0 && (
+                        <span style={{
+                          fontSize: '10px',
+                          background: '#ef4444',
+                          color: 'white',
+                          padding: '2px 8px',
+                          borderRadius: '100px',
+                          fontWeight: '700',
+                          animation: 'pulse-badge 2s infinite'
+                        }}>
+                          {unreadMessagesCount} nuevo{unreadMessagesCount > 1 ? 's' : ''}
+                        </span>
+                      )}
+                    </div>
 
-                      return (
-                        <div
-                          key={msg.id}
-                          onClick={() => handleMessageClick(msg.id)}
-                          style={{
-                            background: isUnread ? 'rgba(59, 130, 246, 0.03)' : 'rgba(255, 255, 255, 0.01)',
-                            border: '1px solid ' + (isUnread ? 'rgba(59, 130, 246, 0.12)' : 'rgba(255, 255, 255, 0.03)'),
-                            borderRadius: '12px',
-                            padding: '12px',
-                            cursor: 'pointer',
-                            transition: 'all 0.15s ease-in-out',
-                            position: 'relative'
-                          }}
-                          className={`message-card ${isUnread ? 'unread-glow' : ''}`}
-                        >
-                          {isUnread && (
-                            <div style={{
-                              position: 'absolute',
-                              left: '6px',
-                              top: '16px',
-                              width: '6px',
-                              height: '6px',
-                              borderRadius: '50%',
-                              background: '#3b82f6',
-                              boxShadow: '0 0 6px #3b82f6'
-                            }}></div>
-                          )}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', overflowY: 'auto', maxHeight: '500px', paddingRight: '2px' }}>
+                      {activeStudentMessages.length > 0 ? (
+                        activeStudentMessages.map(msg => {
+                          const isUnread = !msg.readAt;
+                          const isExpanded = expandedMessageId === msg.id;
 
-                          <div style={{ paddingLeft: isUnread ? '8px' : '0' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '2px', fontSize: '9.5px', color: '#9ca3af' }}>
-                              <span style={{ fontWeight: '700', color: isUnread ? '#3b82f6' : '#9ca3af' }}>
-                                {msg.sender}
-                              </span>
-                              <span>
-                                {msg.sentAt.split(',')[0]}
-                              </span>
-                            </div>
-
-                            <h5 style={{
-                              fontSize: '12.5px',
-                              fontWeight: isUnread ? '700' : '600',
-                              color: isUnread ? '#ffffff' : '#d1d5db',
-                              margin: '0 0 4px 0',
-                              lineHeight: '1.3'
-                            }}>
-                              {msg.title}
-                            </h5>
-
-                            {isExpanded ? (
-                              <div style={{ marginTop: '8px', borderTop: '1px solid rgba(255,255,255,0.04)', paddingTop: '8px' }}>
-                                <p style={{ fontSize: '11.5px', color: '#cbd5e1', lineHeight: '1.5', margin: '0 0 8px 0' }}>
-                                  {msg.content}
-                                </p>
-
+                          return (
+                            <div
+                              key={msg.id}
+                              onClick={() => handleMessageClick(msg.id)}
+                              style={{
+                                background: isUnread ? 'rgba(59, 130, 246, 0.03)' : 'rgba(255, 255, 255, 0.01)',
+                                border: '1px solid ' + (isUnread ? 'rgba(59, 130, 246, 0.12)' : 'rgba(255, 255, 255, 0.03)'),
+                                borderRadius: '12px',
+                                padding: '12px',
+                                cursor: 'pointer',
+                                transition: 'all 0.15s ease-in-out',
+                                position: 'relative'
+                              }}
+                              className={`message-card ${isUnread ? 'unread-glow' : ''}`}
+                            >
+                              {isUnread && (
                                 <div style={{
-                                  display: 'flex',
-                                  justifyContent: 'space-between',
-                                  alignItems: 'center',
-                                  fontSize: '9px',
-                                  background: 'rgba(0,0,0,0.15)',
-                                  padding: '4px 8px',
-                                  borderRadius: '4px',
-                                  color: '#9ca3af'
-                                }}>
-                                  <span style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
-                                    <Eye size={10} /> Leído
+                                  position: 'absolute',
+                                  left: '6px',
+                                  top: '16px',
+                                  width: '6px',
+                                  height: '6px',
+                                  borderRadius: '50%',
+                                  background: '#3b82f6',
+                                  boxShadow: '0 0 6px #3b82f6'
+                                }}></div>
+                              )}
+
+                              <div style={{ paddingLeft: isUnread ? '8px' : '0' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '2px', fontSize: '9.5px', color: '#9ca3af' }}>
+                                  <span style={{ fontWeight: '700', color: isUnread ? '#3b82f6' : '#9ca3af' }}>
+                                    {msg.sender}
                                   </span>
                                   <span>
-                                    Leído: {msg.readAt || 'Procesando...'}
+                                    {msg.sentAt.split(',')[0]}
                                   </span>
                                 </div>
+
+                                <h5 style={{
+                                  fontSize: '12.5px',
+                                  fontWeight: isUnread ? '700' : '600',
+                                  color: isUnread ? '#ffffff' : '#d1d5db',
+                                  margin: '0 0 4px 0',
+                                  lineHeight: '1.3'
+                                }}>
+                                  {msg.title}
+                                </h5>
+
+                                {isExpanded ? (
+                                  <div style={{ marginTop: '8px', borderTop: '1px solid rgba(255,255,255,0.04)', paddingTop: '8px' }}>
+                                    <p style={{ fontSize: '11.5px', color: '#cbd5e1', lineHeight: '1.5', margin: '0 0 8px 0' }}>
+                                      {msg.content}
+                                    </p>
+
+                                    <div style={{
+                                      display: 'flex',
+                                      justifyContent: 'space-between',
+                                      alignItems: 'center',
+                                      fontSize: '9px',
+                                      background: 'rgba(0,0,0,0.15)',
+                                      padding: '4px 8px',
+                                      borderRadius: '4px',
+                                      color: '#9ca3af'
+                                    }}>
+                                      <span style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
+                                        <Eye size={10} /> Leído
+                                      </span>
+                                      <span>
+                                        Leído: {msg.readAt || 'Procesando...'}
+                                      </span>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <p style={{
+                                    fontSize: '11.5px',
+                                    color: '#9ca3af',
+                                    margin: 0,
+                                    whiteSpace: 'nowrap',
+                                    overflow: 'hidden',
+                                    textOverflow: 'ellipsis'
+                                  }}>
+                                    {msg.content}
+                                  </p>
+                                )}
                               </div>
-                            ) : (
-                              <p style={{
-                                fontSize: '11.5px',
-                                color: '#9ca3af',
-                                margin: 0,
-                                whiteSpace: 'nowrap',
-                                overflow: 'hidden',
-                                textOverflow: 'ellipsis'
-                              }}>
-                                {msg.content}
-                              </p>
+                            </div>
+                          );
+                        })
+                      ) : (
+                        <div style={{ padding: '20px', textAlign: 'center', fontSize: '11px', color: '#9ca3af' }}>
+                          Sin comunicados en la bandeja.
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  /* VISTA TICKETS / SOPORTE */
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', flex: 1 }}>
+                    {showNewTicketForm ? (
+                      /* FORMULARIO DE NUEVO TICKET */
+                      <form onSubmit={handleCreateTicketSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                          <button
+                            type="button"
+                            onClick={() => setShowNewTicketForm(false)}
+                            style={{ background: 'none', border: 'none', color: 'var(--text-primary)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', padding: 0 }}
+                          >
+                            <ArrowLeft size={14} /> Volver
+                          </button>
+                          <span style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-primary)' }}>Nueva Solicitud de Soporte</span>
+                        </div>
+
+                        {/* Asunto */}
+                        <div>
+                          <label style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-primary)', display: 'block', marginBottom: '4px' }}>
+                            Asunto / Título
+                          </label>
+                          <input
+                            type="text"
+                            placeholder="Ej: Duda sobre mi saldo o factura"
+                            value={ticketAsunto}
+                            onChange={(e) => setTicketAsunto(e.target.value)}
+                            style={{
+                              width: '100%',
+                              padding: '8px 12px',
+                              borderRadius: '8px',
+                              background: 'var(--inner-card-bg)',
+                              border: '1.5px solid var(--inner-card-border)',
+                              color: 'var(--text-primary)',
+                              fontSize: '12.5px',
+                              outline: 'none',
+                              boxSizing: 'border-box'
+                            }}
+                            required
+                          />
+                        </div>
+
+                        {/* Departamento y Prioridad */}
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                          <div>
+                            <label style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-primary)', display: 'block', marginBottom: '4px' }}>
+                              Departamento
+                            </label>
+                            <select
+                              value={ticketCategoria}
+                              onChange={(e) => setTicketCategoria(e.target.value)}
+                              style={{
+                                width: '100%',
+                                padding: '8px 10px',
+                                borderRadius: '8px',
+                                background: 'var(--inner-card-bg)',
+                                border: '1.5px solid var(--inner-card-border)',
+                                color: 'var(--text-primary)',
+                                fontSize: '12px',
+                                outline: 'none'
+                              }}
+                            >
+                              <option value="Soporte">Soporte Técnico</option>
+                              <option value="Finanzas">Finanzas / Pagos</option>
+                              <option value="Académico">Académico</option>
+                              <option value="Control Escolar">Control Escolar</option>
+                            </select>
+                          </div>
+
+                          <div>
+                            <label style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-primary)', display: 'block', marginBottom: '4px' }}>
+                              Prioridad
+                            </label>
+                            <select
+                              value={ticketPrioridad}
+                              onChange={(e) => setTicketPrioridad(e.target.value)}
+                              style={{
+                                width: '100%',
+                                padding: '8px 10px',
+                                borderRadius: '8px',
+                                background: 'var(--inner-card-bg)',
+                                border: '1.5px solid var(--inner-card-border)',
+                                color: 'var(--text-primary)',
+                                fontSize: '12px',
+                                outline: 'none'
+                              }}
+                            >
+                              <option value="BAJA">Baja</option>
+                              <option value="MEDIA">Media</option>
+                              <option value="ALTA">Alta</option>
+                            </select>
+                          </div>
+                        </div>
+
+                        {/* Descripción */}
+                        <div>
+                          <label style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-primary)', display: 'block', marginBottom: '4px' }}>
+                            Descripción detallada
+                          </label>
+                          <textarea
+                            rows={3}
+                            placeholder="Detalla tu duda o problema aquí..."
+                            value={ticketDescripcion}
+                            onChange={(e) => setTicketDescripcion(e.target.value)}
+                            style={{
+                              width: '100%',
+                              padding: '8px 12px',
+                              borderRadius: '8px',
+                              background: 'var(--inner-card-bg)',
+                              border: '1.5px solid var(--inner-card-border)',
+                              color: 'var(--text-primary)',
+                              fontSize: '12.5px',
+                              outline: 'none',
+                              resize: 'none',
+                              lineHeight: '1.4',
+                              boxSizing: 'border-box'
+                            }}
+                            required
+                          />
+                        </div>
+
+                        {/* Adjunto */}
+                        <div>
+                          <label style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-primary)', display: 'block', marginBottom: '4px' }}>
+                            Adjuntar captura o archivo (Opcional)
+                          </label>
+                          <input
+                            type="file"
+                            id="student-ticket-file"
+                            accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                            style={{ display: 'none' }}
+                            onChange={(e) => setTicketFile(e.target.files?.[0] || null)}
+                          />
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                            <button
+                              type="button"
+                              onClick={() => document.getElementById('student-ticket-file')?.click()}
+                              style={{
+                                padding: '8px 14px',
+                                background: 'rgba(255, 255, 255, 0.05)',
+                                border: '1px solid var(--inner-card-border)',
+                                borderRadius: '8px',
+                                color: 'var(--text-primary)',
+                                fontSize: '12px',
+                                fontWeight: '600',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '6px'
+                              }}
+                            >
+                              <Upload size={12} />
+                              <span>{ticketFile ? 'Cambiar archivo' : 'Seleccionar archivo'}</span>
+                            </button>
+                            {ticketFile && (
+                              <span style={{ fontSize: '11px', color: 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '160px' }}>
+                                {ticketFile.name}
+                              </span>
                             )}
                           </div>
                         </div>
-                      );
-                    })
-                  ) : (
-                    <div style={{ padding: '20px', textAlign: 'center', fontSize: '11px', color: '#9ca3af' }}>
-                      Sin mensajes en la bandeja.
-                    </div>
-                  )}
-                </div>
+
+                        <button
+                          type="submit"
+                          disabled={isSavingTicket}
+                          style={{
+                            width: '100%',
+                            padding: '10px',
+                            background: 'var(--brand-blue, #2563eb)',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '8px',
+                            fontSize: '13px',
+                            fontWeight: '700',
+                            cursor: isSavingTicket ? 'not-allowed' : 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '8px',
+                            opacity: isSavingTicket ? 0.7 : 1,
+                            marginTop: '8px'
+                          }}
+                        >
+                          {isSavingTicket ? 'Enviando solicitud...' : 'Enviar Solicitud 🎫'}
+                        </button>
+                      </form>
+                    ) : selectedPortalTicketId && selectedTicket ? (
+                      /* DETALLE / CONVERSACIÓN DEL TICKET */
+                      <div style={{ display: 'flex', flexDirection: 'column', height: '100%', maxHeight: '550px', gap: '12px' }}>
+                        {/* Cabecera del ticket */}
+                        <div style={{ display: 'flex', flexDirection: 'column', borderBottom: '1px solid var(--inner-card-border)', paddingBottom: '10px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                            <button
+                              type="button"
+                              onClick={() => setSelectedPortalTicketId(null)}
+                              style={{ background: 'none', border: 'none', color: 'var(--text-primary)', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: 0 }}
+                            >
+                              <ArrowLeft size={16} />
+                            </button>
+                            <span style={{ fontSize: '11px', fontWeight: '800', color: 'var(--brand-blue, #2563eb)' }}>{selectedTicket.folio}</span>
+                            <span style={{
+                              fontSize: '9px',
+                              fontWeight: '700',
+                              padding: '1px 6px',
+                              borderRadius: '4px',
+                              background: selectedTicket.status === 'ABIERTO' ? 'rgba(239, 68, 68, 0.08)' : selectedTicket.status === 'EN_PROCESO' ? 'rgba(245, 158, 11, 0.08)' : 'rgba(16, 185, 129, 0.08)',
+                              color: selectedTicket.status === 'ABIERTO' ? '#ef4444' : selectedTicket.status === 'EN_PROCESO' ? '#f59e0b' : '#10b981',
+                              marginLeft: 'auto'
+                            }}>
+                              {selectedTicket.status === 'ABIERTO' ? 'Abierto' : selectedTicket.status === 'EN_PROCESO' ? 'En Proceso' : 'Resuelto'}
+                            </span>
+                          </div>
+                          <h5 style={{ margin: '4px 0 2px 0', fontSize: '13.5px', fontWeight: '700', color: 'var(--text-primary)' }}>
+                            {selectedTicket.asunto}
+                          </h5>
+                          <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
+                            Depto: <strong>{selectedTicket.categoria}</strong> • Prioridad: <strong>{selectedTicket.prioridad}</strong>
+                          </span>
+                        </div>
+
+                        {/* Mensajes del Ticket */}
+                        <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '10px', padding: '6px 2px', minHeight: '180px', maxHeight: '320px' }}>
+                          {/* Descripción de apertura del ticket */}
+                          <div style={{ background: 'rgba(15, 56, 105, 0.03)', border: '1px solid var(--inner-card-border)', borderRadius: '10px', padding: '10px 12px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: 'var(--text-muted)', borderBottom: '1px solid rgba(15, 56, 105, 0.08)', paddingBottom: '4px', marginBottom: '6px' }}>
+                              <span>Descripción Inicial</span>
+                              <span>{new Date(selectedTicket.createdAt).toLocaleDateString('es-MX')}</span>
+                            </div>
+                            <p style={{ margin: 0, fontSize: '12px', color: 'var(--text-primary)', lineHeight: 1.4 }}>{selectedTicket.descripcion}</p>
+                            {selectedTicket.adjuntoUrl && (
+                              <div style={{ marginTop: '8px' }}>
+                                <button
+                                  type="button"
+                                  onClick={() => handleViewDocument(selectedTicket.adjuntoUrl)}
+                                  style={{
+                                    background: 'rgba(255, 255, 255, 0.03)',
+                                    border: '1px solid var(--inner-card-border)',
+                                    borderRadius: '6px',
+                                    color: '#34d399',
+                                    cursor: 'pointer',
+                                    fontSize: '10px',
+                                    padding: '4px 8px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '4px'
+                                  }}
+                                >
+                                  <Eye size={10} />
+                                  <span>Ver adjunto</span>
+                                </button>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Lista de Respuestas */}
+                          {selectedTicket.mensajes?.map((msg: TicketMessage) => {
+                            const isStudentMsg = msg.remitenteTipo === 'ALUMNO';
+                            return (
+                              <div
+                                key={msg.id}
+                                style={{
+                                  display: 'flex',
+                                  flexDirection: 'column',
+                                  alignSelf: isStudentMsg ? 'flex-end' : 'flex-start',
+                                  alignItems: isStudentMsg ? 'flex-end' : 'flex-start',
+                                  gap: '2px',
+                                  width: '100%'
+                                }}
+                              >
+                                <div
+                                  style={{
+                                    maxWidth: '85%',
+                                    padding: '10px 12px',
+                                    borderRadius: '12px',
+                                    fontSize: '12px',
+                                    lineHeight: '1.4',
+                                    background: isStudentMsg ? 'var(--brand-blue, #2563eb)' : 'rgba(255,255,255,0.03)',
+                                    border: isStudentMsg ? 'none' : '1px solid var(--inner-card-border)',
+                                    color: isStudentMsg ? 'white' : 'var(--text-primary)',
+                                    alignSelf: isStudentMsg ? 'flex-end' : 'flex-start',
+                                    borderBottomRightRadius: isStudentMsg ? '2px' : '12px',
+                                    borderBottomLeftRadius: isStudentMsg ? '12px' : '2px'
+                                  }}
+                                >
+                                  {msg.contenido}
+                                </div>
+                                <span style={{ fontSize: '9px', color: 'var(--text-muted)', padding: '0 4px' }}>
+                                  {isStudentMsg ? 'Tú' : msg.remitenteNombre} • {new Date(msg.createdAt).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })}
+                                </span>
+                              </div>
+                            );
+                          })}
+                        </div>
+
+                        {/* Responder Formulario */}
+                        {selectedTicket.status !== 'CERRADO' ? (
+                          <form onSubmit={handleSendTicketReply} style={{ display: 'flex', gap: '8px', borderTop: '1px solid var(--inner-card-border)', paddingTop: '10px' }}>
+                            <input
+                              type="text"
+                              placeholder="Escribe tu mensaje..."
+                              value={ticketReplyText}
+                              onChange={(e) => setTicketReplyText(e.target.value)}
+                              style={{
+                                flex: 1,
+                                padding: '8px 12px',
+                                borderRadius: '8px',
+                                background: 'var(--inner-card-bg)',
+                                border: '1.5px solid var(--inner-card-border)',
+                                color: 'var(--text-primary)',
+                                fontSize: '12px',
+                                outline: 'none'
+                              }}
+                              required
+                            />
+                            <button
+                              type="submit"
+                              disabled={isReplyingTicket || !ticketReplyText.trim()}
+                              style={{
+                                padding: '8px 14px',
+                                background: 'var(--brand-blue, #2563eb)',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '8px',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center'
+                              }}
+                            >
+                              <Send size={12} />
+                            </button>
+                          </form>
+                        ) : (
+                          <div style={{ padding: '8px', textAlign: 'center', background: 'rgba(0,0,0,0.1)', border: '1px dashed var(--inner-card-border)', borderRadius: '8px', fontSize: '11px', color: 'var(--text-muted)' }}>
+                            Este ticket ha sido cerrado y no admite más mensajes.
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      /* LISTADO DE TICKETS DEL ALUMNO */
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', flex: 1 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                          <span style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: '600' }}>Tus Tickets de Soporte</span>
+                          <button
+                            onClick={() => setShowNewTicketForm(true)}
+                            style={{
+                              background: 'var(--gradient-accent)',
+                              color: '#081c33',
+                              border: 'none',
+                              borderRadius: '8px',
+                              padding: '5px 10px',
+                              fontSize: '11px',
+                              fontWeight: '700',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              boxShadow: '0 2px 6px rgba(229, 169, 59, 0.2)'
+                            }}
+                          >
+                            <Plus size={12} /> Nueva Solicitud
+                          </button>
+                        </div>
+
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', overflowY: 'auto', maxHeight: '450px', paddingRight: '2px' }}>
+                          {studentTickets && studentTickets.length > 0 ? (
+                            studentTickets.map(t => {
+                              const dateStr = new Date(t.createdAt).toLocaleDateString('es-MX', { day: '2-digit', month: 'short' });
+                              return (
+                                <div
+                                  key={t.id}
+                                  onClick={() => setSelectedPortalTicketId(t.id)}
+                                  style={{
+                                    background: 'rgba(255, 255, 255, 0.01)',
+                                    border: '1px solid var(--inner-card-border)',
+                                    borderRadius: '12px',
+                                    padding: '12px',
+                                    cursor: 'pointer',
+                                    transition: 'all 0.15s ease-in-out'
+                                  }}
+                                  className="message-card"
+                                >
+                                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '6px' }}>
+                                    <span style={{ fontSize: '10px', fontWeight: '700', color: 'var(--brand-blue, #2563eb)' }}>{t.folio}</span>
+                                    <span style={{ fontSize: '9px', color: 'var(--text-muted)' }}>{dateStr}</span>
+                                  </div>
+
+                                  <h5 style={{ margin: '0 0 6px 0', fontSize: '12.5px', fontWeight: '700', color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                    {t.asunto}
+                                  </h5>
+
+                                  <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                                    <span style={{ fontSize: '9px', padding: '1px 5px', borderRadius: '4px', background: 'rgba(15, 56, 105, 0.05)', color: 'var(--text-muted)' }}>
+                                      {t.categoria}
+                                    </span>
+                                    <span style={{
+                                      fontSize: '9px',
+                                      fontWeight: '700',
+                                      padding: '1px 5px',
+                                      borderRadius: '4px',
+                                      background: t.status === 'ABIERTO' ? 'rgba(239, 68, 68, 0.08)' : t.status === 'EN_PROCESO' ? 'rgba(245, 158, 11, 0.08)' : 'rgba(16, 185, 129, 0.08)',
+                                      color: t.status === 'ABIERTO' ? '#ef4444' : t.status === 'EN_PROCESO' ? '#f59e0b' : '#10b981',
+                                      marginLeft: 'auto'
+                                    }}>
+                                      {t.status === 'ABIERTO' ? 'Abierto' : t.status === 'EN_PROCESO' ? 'En Proceso' : 'Resuelto'}
+                                    </span>
+                                  </div>
+                                </div>
+                              );
+                            })
+                          ) : (
+                            <div style={{ padding: '30px 10px', textAlign: 'center', border: '1px dashed var(--inner-card-border)', borderRadius: '12px', color: 'var(--text-muted)', fontSize: '12px' }}>
+                              <LifeBuoy size={24} style={{ opacity: 0.4, marginBottom: '6px', marginInline: 'auto' }} />
+                              <span>¿Necesitas ayuda?</span>
+                              <p style={{ margin: '4px 0 0 0', fontSize: '11px', color: 'var(--text-muted)' }}>
+                                Crea un ticket de soporte para contactar a control escolar o resolver dudas académicas/financieras.
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
             </div>
@@ -1315,6 +2114,31 @@ export default function EstudiantePortalPage() {
             </div>
           </div>
 
+        </div>
+      )}
+
+      {/* TOAST / FEEDBACK DE ACCIONES */}
+      {feedback.message && (
+        <div style={{
+          position: 'fixed',
+          bottom: '24px',
+          right: '24px',
+          background: feedback.type === 'success' ? 'rgba(16, 185, 129, 0.95)' : 'rgba(239, 68, 68, 0.95)',
+          border: `1px solid ${feedback.type === 'success' ? 'rgba(52, 211, 153, 0.2)' : 'rgba(248, 113, 113, 0.2)'}`,
+          borderRadius: '12px',
+          padding: '16px 24px',
+          boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.3)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '12px',
+          color: 'white',
+          zIndex: 99999,
+          fontSize: '14px',
+          fontWeight: '600',
+          animation: 'modalSlideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1)'
+        }}>
+          {feedback.type === 'success' ? <CheckCircle2 size={18} /> : <AlertCircle size={18} />}
+          <span>{feedback.message}</span>
         </div>
       )}
     </div>

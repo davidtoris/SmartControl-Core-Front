@@ -9,6 +9,7 @@ import {
   Wallet, QrCode, Sparkles, Printer, UserCheck, ShieldCheck
 } from 'lucide-react';
 import { useAppStore } from '../store/useAppStore';
+import apiClient from '../api/apiClient';
 
 // --- Mapeo de descripciones e iconos para los documentos requeridos ---
 const DOCS_CONFIG: Record<string, { desc: string }> = {
@@ -66,7 +67,15 @@ const contactSchema = z.object({
   path: ['tutorCorreo']
 });
 
-type ContactFormData = z.infer<typeof contactSchema>;
+const generateUUID = () => {
+  if (typeof window !== 'undefined' && window.crypto && window.crypto.randomUUID) {
+    try {
+      return window.crypto.randomUUID();
+    } catch (e) {}
+  }
+  // Fallback simple compatible
+  return 'al-' + Math.random().toString(36).substring(2, 15) + '-' + Date.now();
+};
 
 export default function InscripcionPage() {
   const navigate = useNavigate();
@@ -122,6 +131,7 @@ export default function InscripcionPage() {
   const [loadingToken, setLoadingToken] = useState(!!token);
   const [tokenError, setTokenError] = useState<string | null>(null);
   const [enlaceData, setEnlaceData] = useState<any>(null);
+  const [isFinalizing, setIsFinalizing] = useState(false);
 
   // Paso 2: Académico y Modalidad
   const [curso, setCurso] = useState(paramCurso || 'UNAM'); // UNAM, COMIPEMS, IPN
@@ -260,6 +270,17 @@ export default function InscripcionPage() {
       return;
     }
 
+    // Validar peso máximo de 5MB
+    const MAX_SIZE_MB = 5;
+    const MAX_SIZE_BYTES = MAX_SIZE_MB * 1024 * 1024;
+    if (file.size > MAX_SIZE_BYTES) {
+      setDocs(prev => ({
+        ...prev,
+        [docName]: { ...prev[docName], error: `El archivo supera el límite de ${MAX_SIZE_MB}MB`, status: 'Faltante' }
+      }));
+      return;
+    }
+
     // Iniciar carga simulada
     setDocs(prev => ({
       ...prev,
@@ -358,60 +379,89 @@ export default function InscripcionPage() {
 
   // --- Guardar Alumno en Zustand ---
   const handleFinalize = async () => {
-    const values = getValues(); // Obtener valores validados de react-hook-form
+    setIsFinalizing(true);
+    try {
+      const values = getValues(); // Obtener valores validados de react-hook-form
+      const studentId = generateUUID();
 
-    // Calcular estatus dinámicamente
-    const hasAllDocs = requiredDocs.every(docName => docs[docName]?.status === 'Subido');
-    
-    let finalStatus = 'Pendiente Docs';
-    if (hasAllDocs) {
-      finalStatus = pagoInicial >= costoTotal ? 'Activo - Al Corriente' : 'Activo - Con Adeudos';
-    }
+      // 1. Subir cada uno de los archivos cargados a S3 en su propia carpeta de alumno
+      const docUrls: { [key: string]: string } = {};
+      for (const docName of requiredDocs) {
+        const docEntry = docs[docName];
+        if (docEntry && docEntry.file) {
+          try {
+            const formData = new FormData();
+            formData.append('file', docEntry.file);
+            formData.append('folder', `alumnos/id/${studentId}/documentos`);
+            const cleanDocName = docName.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase();
+            const targetName = `${cleanDocName}-${Date.now()}`;
+            formData.append('fileName', targetName);
 
-    // Iniciales nombre
-    const initials = values.nombre.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
-
-    const newStudent = {
-      name: values.nombre,
-      curso: `Ingreso ${curso}`,
-      tutor: values.esMenor ? values.tutorNombre : 'N/A (Mayor de Edad)',
-      status: finalStatus,
-      phone: values.celular,
-      avatar: initials || 'AL',
-      fechaRegistro: values.fechaRegistro,
-      entidadFederativa: values.entidadFederativa,
-      horario: values.horario,
-      telefonoContacto: values.telefonoContacto,
-      tutorEmail: values.esMenor ? values.tutorCorreo : '',
-      paymentPlan: {
-        type: tipoPago === 'Contado' ? 'Contado' : `${mensualidadesDiferidas} pagos`,
-        totalCost: costoTotal,
-        amountPaid: pagoInicial,
-        costoInscripcion: costoInscripcionOverride,
-        planPagosRealizados: 0, // No se ha hecho el primer pago aún
-        planPagosTotales: mensualidadesDiferidas
-      },
-      documents: requiredDocs.map(docName => ({
-        name: docName,
-        status: docs[docName]?.status === 'Subido' ? 'Subido' : 'Faltante'
-      }))
-    };
-
-    if (token) {
-      await registerPublicStudent(newStudent, token);
-    } else {
-      await addStudent(newStudent);
-    }
-    
-    // Obtener el ID asignado por el backend para mostrar en el comprobante
-    setTimeout(() => {
-      const latest = useAppStore.getState().students.find(s => s.name === values.nombre);
-      if (latest) {
-        setNewStudentId(latest.id as any);
+            const uploadRes = await apiClient.post('/uploads/public', formData, {
+              headers: {
+                'Content-Type': 'multipart/form-data'
+              }
+            });
+            docUrls[docName] = uploadRes.data.url;
+          } catch (uploadError) {
+            console.error(`Error al subir el documento ${docName} a S3:`, uploadError);
+          }
+        }
       }
-    }, 1000);
 
-    setStep(5);
+      // Calcular estatus dinámicamente
+      const hasAllDocs = requiredDocs.every(docName => docs[docName]?.status === 'Subido');
+      
+      let finalStatus = 'Pendiente Docs';
+      if (hasAllDocs) {
+        finalStatus = pagoInicial >= costoTotal ? 'Activo - Al Corriente' : 'Activo - Con Adeudos';
+      }
+
+      // Iniciales nombre
+      const initials = values.nombre.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+
+      const newStudent = {
+        id: studentId,
+        name: values.nombre,
+        curso: `Ingreso ${curso}`,
+        tutor: values.esMenor ? values.tutorNombre : 'N/A (Mayor de Edad)',
+        status: finalStatus,
+        phone: values.celular,
+        avatar: initials || 'AL',
+        fechaRegistro: values.fechaRegistro,
+        entidadFederativa: values.entidadFederativa,
+        horario: values.horario,
+        telefonoContacto: values.telefonoContacto,
+        tutorEmail: values.esMenor ? values.tutorCorreo : '',
+        paymentPlan: {
+          type: tipoPago === 'Contado' ? 'Contado' : `${mensualidadesDiferidas} pagos`,
+          totalCost: costoTotal,
+          amountPaid: pagoInicial,
+          costoInscripcion: costoInscripcionOverride,
+          planPagosRealizados: 0,
+          planPagosTotales: mensualidadesDiferidas
+        },
+        documents: requiredDocs.map(docName => ({
+          name: docName,
+          status: docs[docName]?.status === 'Subido' ? 'Subido' : 'Faltante',
+          url: docUrls[docName] || null
+        }))
+      };
+
+      if (token) {
+        await registerPublicStudent(newStudent, token);
+      } else {
+        await addStudent(newStudent);
+      }
+      
+      setNewStudentId(studentId as any);
+      setStep(5);
+    } catch (err) {
+      console.error('Error al finalizar inscripción:', err);
+      alert('Ocurrió un error al procesar el registro y la subida de tus documentos. Por favor inténtalo de nuevo.');
+    } finally {
+      setIsFinalizing(false);
+    }
   };
 
   if (loadingToken) {
@@ -1657,6 +1707,7 @@ export default function InscripcionPage() {
             {step > 1 ? (
               <button 
                 type="button" 
+                disabled={isFinalizing}
                 onClick={() => setStep(prev => prev - 1)}
                 style={{
                   background: 'transparent',
@@ -1665,15 +1716,20 @@ export default function InscripcionPage() {
                   padding: '12px 24px',
                   fontSize: '14px',
                   fontWeight: '600',
-                  color: 'var(--text-primary)',
-                  cursor: 'pointer',
+                  color: isFinalizing ? 'var(--text-secondary)' : 'var(--text-primary)',
+                  cursor: isFinalizing ? 'not-allowed' : 'pointer',
                   display: 'flex',
                   alignItems: 'center',
                   gap: '8px',
-                  transition: 'var(--transition)'
+                  transition: 'var(--transition)',
+                  opacity: isFinalizing ? 0.5 : 1
                 }}
-                onMouseOver={e => e.currentTarget.style.background = 'var(--bg-main)'}
-                onMouseOut={e => e.currentTarget.style.background = 'transparent'}
+                onMouseOver={e => {
+                  if (!isFinalizing) e.currentTarget.style.background = 'var(--bg-main)';
+                }}
+                onMouseOut={e => {
+                  if (!isFinalizing) e.currentTarget.style.background = 'transparent';
+                }}
               >
                 <ChevronLeft size={16} /> Atrás
               </button>
@@ -1683,31 +1739,38 @@ export default function InscripcionPage() {
 
             <button 
               type="button" 
-              disabled={!isStepValid()}
+              disabled={!isStepValid() || isFinalizing}
               onClick={handleNext}
               style={{
-                background: isStepValid() ? 'var(--brand-blue)' : 'var(--border-color)',
+                background: isStepValid() && !isFinalizing ? 'var(--brand-blue)' : 'var(--border-color)',
                 border: 'none',
                 borderRadius: '12px',
                 padding: '12px 28px',
                 fontSize: '14px',
                 fontWeight: '600',
-                color: isStepValid() ? 'white' : 'var(--text-secondary)',
-                cursor: isStepValid() ? 'pointer' : 'not-allowed',
+                color: isStepValid() && !isFinalizing ? 'white' : 'var(--text-secondary)',
+                cursor: isStepValid() && !isFinalizing ? 'pointer' : 'not-allowed',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '8px',
-                boxShadow: isStepValid() ? '0 4px 12px rgba(30, 58, 138, 0.15)' : 'none',
+                boxShadow: isStepValid() && !isFinalizing ? '0 4px 12px rgba(30, 58, 138, 0.15)' : 'none',
                 transition: 'var(--transition)'
               }}
               onMouseOver={e => {
-                if (isStepValid()) e.currentTarget.style.background = '#1d4ed8';
+                if (isStepValid() && !isFinalizing) e.currentTarget.style.background = '#1d4ed8';
               }}
               onMouseOut={e => {
-                if (isStepValid()) e.currentTarget.style.background = 'var(--brand-blue)';
+                if (isStepValid() && !isFinalizing) e.currentTarget.style.background = 'var(--brand-blue)';
               }}
             >
-              {step === 4 ? 'Confirmar Inscripción' : 'Continuar'} <ChevronRight size={16} />
+              {isFinalizing ? (
+                <>Procesando...</>
+              ) : step === 4 ? (
+                'Confirmar Inscripción'
+              ) : (
+                'Continuar'
+              )} 
+              {!isFinalizing && <ChevronRight size={16} />}
             </button>
           </div>
         )}

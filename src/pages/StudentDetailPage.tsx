@@ -1,12 +1,13 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, Fragment } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { 
   ChevronLeft, BookOpen, Phone, Calendar, Wallet, FileText, 
   AlertTriangle, CheckCircle2, TrendingUp, Download, UserCheck,
-  Clock, Award, Star, Plus, AlertCircle, UploadCloud, Pencil, Loader2
+  Clock, Award, Star, Plus, AlertCircle, UploadCloud, Pencil, Loader2, Eye, Check, X
 } from 'lucide-react';
 import { AreaChart, Area, CartesianGrid, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { useAppStore } from '../store/useAppStore';
+import apiClient from '../api/apiClient';
 
 const formatAttendanceDate = (dateStr: string) => {
   if (!dateStr) return '';
@@ -42,6 +43,8 @@ export default function StudentDetailPage() {
   const [selectedCuotaToPay, setSelectedCuotaToPay] = useState<any | null>(null);
   const [isSubmittingPayment, setIsSubmittingPayment] = useState(false);
   const [downloadReceiptUrl, setDownloadReceiptUrl] = useState<string | null>(null);
+  const [comprobanteFile, setComprobanteFile] = useState<File | null>(null);
+  const [paymentAmount, setPaymentAmount] = useState<string>('');
   const [feedback, setFeedback] = useState<{ message: string; type: 'success' | 'error' | null }>({
     message: '',
     type: null
@@ -61,6 +64,66 @@ export default function StudentDetailPage() {
   }, [fetchServicios]);
 
   const [uploadingDocs, setUploadingDocs] = useState<Record<string, boolean>>({});
+  const [rejectingDocName, setRejectingDocName] = useState<string | null>(null);
+  const [rejectionReason, setRejectionReason] = useState<string>('');
+
+  const handleApproveDocument = async (docName: string) => {
+    if (!selectedStudent) return;
+
+    try {
+      setUploadingDocs(prev => ({ ...prev, [docName]: true }));
+
+      const updatedDocs = (selectedStudent.documents || []).map((d: any) => {
+        if (d.name === docName) {
+          return { ...d, status: 'Verificado', comentario: '' };
+        }
+        return d;
+      });
+
+      await useAppStore.getState().updateStudentTracking(selectedStudent.id, {
+        documents: updatedDocs
+      });
+
+      setFeedback({ message: `¡Documento "${docName}" aprobado y verificado! ✅`, type: 'success' });
+    } catch (err) {
+      console.error('Error al aprobar documento:', err);
+      setFeedback({ message: 'Error al procesar la aprobación del documento.', type: 'error' });
+    } finally {
+      setUploadingDocs(prev => ({ ...prev, [docName]: false }));
+    }
+  };
+
+  const handleRejectDocument = async (docName: string) => {
+    if (!selectedStudent) return;
+    if (!rejectionReason.trim()) {
+      setFeedback({ message: 'Debe ingresar un motivo de rechazo.', type: 'error' });
+      return;
+    }
+
+    try {
+      setUploadingDocs(prev => ({ ...prev, [docName]: true }));
+
+      const updatedDocs = (selectedStudent.documents || []).map((d: any) => {
+        if (d.name === docName) {
+          return { ...d, status: 'Rechazado', comentario: rejectionReason.trim() };
+        }
+        return d;
+      });
+
+      await useAppStore.getState().updateStudentTracking(selectedStudent.id, {
+        documents: updatedDocs
+      });
+
+      setRejectingDocName(null);
+      setRejectionReason('');
+      setFeedback({ message: `¡Documento "${docName}" marcado como rechazado! ❌`, type: 'success' });
+    } catch (err) {
+      console.error('Error al rechazar documento:', err);
+      setFeedback({ message: 'Error al procesar el rechazo del documento.', type: 'error' });
+    } finally {
+      setUploadingDocs(prev => ({ ...prev, [docName]: false }));
+    }
+  };
 
   const handleUploadDocument = async (docName: string, file: File) => {
     if (!selectedStudent) return;
@@ -71,24 +134,44 @@ export default function StudentDetailPage() {
       return;
     }
 
+    // Validar peso máximo de 5MB
+    const MAX_SIZE_MB = 5;
+    if (file.size > MAX_SIZE_MB * 1024 * 1024) {
+      setFeedback({ message: `Error: El archivo supera el límite de ${MAX_SIZE_MB}MB.`, type: 'error' });
+      return;
+    }
+
     try {
       // Activar spinner en la fila del documento
       setUploadingDocs(prev => ({ ...prev, [docName]: true }));
       
-      // Simular tiempo de carga para un feedback visual excelente
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // 1. Subir archivo a S3 en la carpeta del alumno
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('folder', `alumnos/id/${selectedStudent.id}/documentos`);
+      
+      const cleanDocName = docName.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase();
+      const targetName = `${cleanDocName}-${Date.now()}`;
+      formData.append('fileName', targetName);
+
+      const uploadRes = await apiClient.post('/uploads/public', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
+      });
+      const uploadedUrl = uploadRes.data.url;
 
       // Construir la nueva lista de documentos
       const updatedDocs = (selectedStudent.documents || []).map((d: any) => {
         if (d.name === docName) {
-          return { ...d, status: 'Subido' };
+          return { ...d, status: 'Subido', url: uploadedUrl, comentario: null };
         }
         return d;
       });
 
       // Si por alguna razón el documento no estaba en la lista requerida del alumno, lo agregamos
       if (!updatedDocs.find((d: any) => d.name === docName)) {
-        updatedDocs.push({ name: docName, status: 'Subido' });
+        updatedDocs.push({ name: docName, status: 'Subido', url: uploadedUrl, comentario: null });
       }
 
       // Actualizar a través del Zustand Store
@@ -545,100 +628,261 @@ export default function StudentDetailPage() {
                     const characteristics = matchedDocConfig?.caracteristicas || '';
 
                     return (
-                      <tr key={i} style={{ borderBottom: '1px solid var(--border-color)' }}>
-                        <td style={{ padding: '16px 24px', fontSize: '14px', fontWeight: '500', color: 'var(--text-primary)', textAlign: 'left' }}>
-                          <div>{doc.name}</div>
-                          {characteristics && (
-                            <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px', fontWeight: 'normal' }}>
-                              {characteristics}
-                            </div>
-                          )}
-                        </td>
-                        <td style={{ padding: '16px 24px', textAlign: 'right' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '12px' }}>
-                            {isUploading ? (
-                              <span style={{ 
-                                padding: '6px 12px', borderRadius: '100px', fontSize: '12px', fontWeight: '600', display: 'inline-flex', alignItems: 'center', gap: '8px',
-                                background: 'rgba(59, 130, 246, 0.1)',
-                                color: 'var(--brand-blue)'
-                              }}>
-                                <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} />
-                                Subiendo...
-                              </span>
-                            ) : (
-                              <>
-                                <span style={{ 
-                                  padding: '6px 12px', borderRadius: '100px', fontSize: '12px', fontWeight: '600', display: 'inline-flex', alignItems: 'center', gap: '6px',
-                                  background: doc.status === 'Subido' ? 'rgba(34, 197, 94, 0.1)' : 'rgba(239, 68, 68, 0.1)',
-                                  color: doc.status === 'Subido' ? '#16a34a' : '#ef4444'
-                                }}>
-                                  {doc.status === 'Subido' ? <CheckCircle2 size={14} /> : <AlertTriangle size={14} />}
-                                  {doc.status}
-                                </span>
-
-                                {/* Hidden file input */}
-                                <input 
-                                  type="file" 
-                                  id={`file-input-${i}`} 
-                                  accept=".pdf" 
-                                  style={{ display: 'none' }}
-                                  onChange={(e) => {
-                                    const file = e.target.files?.[0];
-                                    if (file) {
-                                      handleUploadDocument(doc.name, file);
-                                    }
-                                    e.target.value = '';
-                                  }}
-                                />
-
-                                {doc.status === 'Subido' ? (
-                                  <button 
-                                    className="btn-secondary"
-                                    onClick={() => document.getElementById(`file-input-${i}`)?.click()}
-                                    title="Reemplazar documento PDF"
-                                    style={{ 
-                                      width: '32px', height: '32px', padding: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: '50%',
-                                      background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border-color)', color: 'var(--text-secondary)', cursor: 'pointer', transition: 'var(--transition)'
-                                    }}
-                                    onMouseOver={(e) => {
-                                      e.currentTarget.style.background = 'rgba(59,130,246,0.1)';
-                                      e.currentTarget.style.color = 'var(--brand-blue)';
-                                      e.currentTarget.style.borderColor = 'rgba(59,130,246,0.2)';
-                                    }}
-                                    onMouseOut={(e) => {
-                                      e.currentTarget.style.background = 'rgba(255,255,255,0.03)';
-                                      e.currentTarget.style.color = 'var(--text-secondary)';
-                                      e.currentTarget.style.borderColor = 'var(--border-color)';
-                                    }}
-                                  >
-                                    <Pencil size={14} />
-                                  </button>
-                                ) : (
-                                  <button 
-                                    className="btn-secondary"
-                                    onClick={() => document.getElementById(`file-input-${i}`)?.click()}
-                                    style={{ 
-                                      width: 'auto', padding: '6px 12px', fontSize: '12px', height: '32px', display: 'inline-flex', alignItems: 'center', gap: '6px',
-                                      background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.2)', color: 'var(--brand-blue)', cursor: 'pointer', transition: 'var(--transition)'
-                                    }}
-                                    onMouseOver={(e) => {
-                                      e.currentTarget.style.background = 'var(--brand-blue)';
-                                      e.currentTarget.style.color = 'white';
-                                    }}
-                                    onMouseOut={(e) => {
-                                      e.currentTarget.style.background = 'rgba(59,130,246,0.1)';
-                                      e.currentTarget.style.color = 'var(--brand-blue)';
-                                    }}
-                                  >
-                                    <UploadCloud size={14} />
-                                    Subir
-                                  </button>
-                                )}
-                              </>
+                      <Fragment key={i}>
+                        <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
+                          <td style={{ padding: '16px 24px', fontSize: '14px', fontWeight: '500', color: 'var(--text-primary)', textAlign: 'left' }}>
+                            <div>{doc.name}</div>
+                            {characteristics && (
+                              <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px', fontWeight: 'normal' }}>
+                                {characteristics}
+                              </div>
                             )}
-                          </div>
-                        </td>
-                      </tr>
+                            {doc.status === 'Rechazado' && doc.comentario && (
+                              <div style={{ fontSize: '12px', color: '#f87171', marginTop: '4px', fontWeight: 'bold' }}>
+                                ❌ Rechazado: {doc.comentario}
+                              </div>
+                            )}
+                          </td>
+                          <td style={{ padding: '16px 24px', textAlign: 'right' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '12px' }}>
+                              {isUploading ? (
+                                <span style={{ 
+                                  padding: '6px 12px', borderRadius: '100px', fontSize: '12px', fontWeight: '600', display: 'inline-flex', alignItems: 'center', gap: '8px',
+                                  background: 'rgba(59, 130, 246, 0.1)',
+                                  color: 'var(--brand-blue)'
+                                }}>
+                                  <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} />
+                                  Subiendo...
+                                </span>
+                              ) : (
+                                <>
+                                  <span style={{ 
+                                    padding: '6px 12px', borderRadius: '100px', fontSize: '12px', fontWeight: '600', display: 'inline-flex', alignItems: 'center', gap: '6px',
+                                    background: doc.status === 'Verificado' 
+                                      ? 'rgba(16, 185, 129, 0.1)' 
+                                      : doc.status === 'Subido' 
+                                        ? 'rgba(59, 130, 246, 0.1)' 
+                                        : 'rgba(239, 68, 68, 0.1)',
+                                    color: doc.status === 'Verificado' 
+                                      ? '#10b981' 
+                                      : doc.status === 'Subido' 
+                                        ? '#3b82f6' 
+                                        : '#ef4444'
+                                  }}>
+                                    {doc.status === 'Verificado' ? <CheckCircle2 size={14} /> : <AlertTriangle size={14} />}
+                                    {doc.status === 'Verificado' 
+                                      ? 'Verificado' 
+                                      : doc.status === 'Subido' 
+                                        ? 'Subido (Por Validar)' 
+                                        : doc.status === 'Rechazado' 
+                                          ? 'Rechazado' 
+                                          : 'Faltante'}
+                                  </span>
+
+                                  {/* Hidden file input */}
+                                  <input 
+                                    type="file" 
+                                    id={`file-input-${i}`} 
+                                    accept=".pdf" 
+                                    style={{ display: 'none' }}
+                                    onChange={(e) => {
+                                      const file = e.target.files?.[0];
+                                      if (file) {
+                                        handleUploadDocument(doc.name, file);
+                                      }
+                                      e.target.value = '';
+                                    }}
+                                  />
+
+                                  {doc.status !== 'Faltante' ? (
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                      <button 
+                                        className="btn-secondary"
+                                        onClick={async () => {
+                                          if (doc.url) {
+                                            let targetUrl = doc.url;
+                                            if (targetUrl.startsWith('http') && targetUrl.includes('amazonaws.com') && !targetUrl.includes('Signature=')) {
+                                              try {
+                                                const res = await apiClient.get(`/uploads/presigned?url=${encodeURIComponent(targetUrl)}`);
+                                                targetUrl = res.data.url;
+                                              } catch (err) {
+                                                console.error('Error al firmar URL:', err);
+                                              }
+                                            }
+                                            window.open(targetUrl, '_blank');
+                                          } else {
+                                            setFeedback({ message: 'No hay un archivo físico cargado para este documento (registro de prueba).', type: 'error' });
+                                          }
+                                        }}
+                                        style={{ 
+                                          width: '32px', height: '32px', padding: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: '50%',
+                                          background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border-color)', color: 'var(--text-secondary)', cursor: 'pointer', transition: 'var(--transition)',
+                                          opacity: doc.url ? 1 : 0.35
+                                        }}
+                                        onMouseOver={(e) => {
+                                          e.currentTarget.style.opacity = '1';
+                                          if (!doc.url) {
+                                            e.currentTarget.style.background = 'rgba(239,68,68,0.1)';
+                                            e.currentTarget.style.color = '#ef4444';
+                                            e.currentTarget.style.borderColor = 'rgba(239,68,68,0.2)';
+                                            return;
+                                          }
+                                          e.currentTarget.style.background = 'rgba(59,130,246,0.1)';
+                                          e.currentTarget.style.color = 'var(--brand-blue)';
+                                          e.currentTarget.style.borderColor = 'rgba(59,130,246,0.2)';
+                                        }}
+                                        onMouseOut={(e) => {
+                                          e.currentTarget.style.background = 'rgba(255,255,255,0.03)';
+                                          e.currentTarget.style.color = 'var(--text-secondary)';
+                                          e.currentTarget.style.borderColor = 'var(--border-color)';
+                                          e.currentTarget.style.opacity = doc.url ? '1' : '0.35';
+                                        }}
+                                      >
+                                        <Eye size={14} />
+                                      </button>
+                                      <button 
+                                        className="btn-secondary"
+                                        onClick={() => document.getElementById(`file-input-${i}`)?.click()}
+                                        title="Reemplazar documento PDF"
+                                        style={{ 
+                                          width: '32px', height: '32px', padding: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: '50%',
+                                          background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border-color)', color: 'var(--text-secondary)', cursor: 'pointer', transition: 'var(--transition)'
+                                        }}
+                                        onMouseOver={(e) => {
+                                          e.currentTarget.style.background = 'rgba(59,130,246,0.1)';
+                                          e.currentTarget.style.color = 'var(--brand-blue)';
+                                          e.currentTarget.style.borderColor = 'rgba(59,130,246,0.2)';
+                                        }}
+                                        onMouseOut={(e) => {
+                                          e.currentTarget.style.background = 'rgba(255,255,255,0.03)';
+                                          e.currentTarget.style.color = 'var(--text-secondary)';
+                                          e.currentTarget.style.borderColor = 'var(--border-color)';
+                                        }}
+                                      >
+                                        <Pencil size={14} />
+                                      </button>
+
+                                      {doc.status !== 'Verificado' && (
+                                        <button 
+                                          className="btn-secondary"
+                                          onClick={() => handleApproveDocument(doc.name)}
+                                          title="Aprobar / Verificar documento"
+                                          style={{ 
+                                            width: '32px', height: '32px', padding: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: '50%',
+                                            background: 'rgba(16,185,129,0.05)', border: '1px solid rgba(16,185,129,0.2)', color: '#10b981', cursor: 'pointer', transition: 'var(--transition)'
+                                          }}
+                                          onMouseOver={(e) => {
+                                            e.currentTarget.style.background = '#10b981';
+                                            e.currentTarget.style.color = 'white';
+                                            e.currentTarget.style.borderColor = '#10b981';
+                                          }}
+                                          onMouseOut={(e) => {
+                                            e.currentTarget.style.background = 'rgba(16,185,129,0.05)';
+                                            e.currentTarget.style.color = '#10b981';
+                                            e.currentTarget.style.borderColor = 'rgba(16,185,129,0.2)';
+                                          }}
+                                        >
+                                          <Check size={14} />
+                                        </button>
+                                      )}
+
+                                      {doc.status !== 'Rechazado' && (
+                                        <button 
+                                          className="btn-secondary"
+                                          onClick={() => {
+                                            setRejectingDocName(doc.name);
+                                            setRejectionReason('');
+                                          }}
+                                          title="Rechazar documento"
+                                          style={{ 
+                                            width: '32px', height: '32px', padding: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: '50%',
+                                            background: 'rgba(239,68,68,0.05)', border: '1px solid rgba(239,68,68,0.2)', color: '#ef4444', cursor: 'pointer', transition: 'var(--transition)'
+                                          }}
+                                          onMouseOver={(e) => {
+                                            e.currentTarget.style.background = '#ef4444';
+                                            e.currentTarget.style.color = 'white';
+                                            e.currentTarget.style.borderColor = '#ef4444';
+                                          }}
+                                          onMouseOut={(e) => {
+                                            e.currentTarget.style.background = 'rgba(239,68,68,0.05)';
+                                            e.currentTarget.style.color = '#ef4444';
+                                            e.currentTarget.style.borderColor = 'rgba(239,68,68,0.2)';
+                                          }}
+                                        >
+                                          <X size={14} />
+                                        </button>
+                                      )}
+                                    </div>
+                                  ) : (
+                                    <button 
+                                      className="btn-secondary"
+                                      onClick={() => document.getElementById(`file-input-${i}`)?.click()}
+                                      style={{ 
+                                        width: 'auto', padding: '6px 12px', fontSize: '12px', height: '32px', display: 'inline-flex', alignItems: 'center', gap: '6px',
+                                        background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.2)', color: 'var(--brand-blue)', cursor: 'pointer', transition: 'var(--transition)'
+                                      }}
+                                      onMouseOver={(e) => {
+                                        e.currentTarget.style.background = 'var(--brand-blue)';
+                                        e.currentTarget.style.color = 'white';
+                                      }}
+                                      onMouseOut={(e) => {
+                                        e.currentTarget.style.background = 'rgba(59,130,246,0.1)';
+                                        e.currentTarget.style.color = 'var(--brand-blue)';
+                                      }}
+                                    >
+                                      <UploadCloud size={14} />
+                                      Subir
+                                    </button>
+                                  )}
+                                </>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                        {rejectingDocName === doc.name && (
+                          <tr style={{ background: 'rgba(239, 68, 68, 0.02)', borderBottom: '1px solid var(--border-color)' }}>
+                            <td colSpan={2} style={{ padding: '12px 24px', textAlign: 'left' }}>
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                <label style={{ fontSize: '12px', fontWeight: '600', color: '#f87171' }}>Motivo de rechazo para "{doc.name}":</label>
+                                <div style={{ display: 'flex', gap: '12px' }}>
+                                  <input
+                                    type="text"
+                                    placeholder="Ej: El archivo no es legible, no corresponde al alumno, etc."
+                                    value={rejectionReason}
+                                    onChange={(e) => setRejectionReason(e.target.value)}
+                                    style={{
+                                      flex: 1,
+                                      padding: '8px 12px',
+                                      borderRadius: '8px',
+                                      border: '1px solid rgba(239, 68, 68, 0.3)',
+                                      background: 'rgba(0,0,0,0.2)',
+                                      color: 'white',
+                                      fontSize: '13px'
+                                    }}
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() => handleRejectDocument(doc.name)}
+                                    style={{ padding: '8px 16px', background: '#ef4444', border: 'none', borderRadius: '8px', fontSize: '13px', color: 'white', cursor: 'pointer', fontWeight: '600' }}
+                                  >
+                                    Confirmar Rechazo
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setRejectingDocName(null);
+                                      setRejectionReason('');
+                                    }}
+                                    style={{ padding: '8px 16px', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border-color)', borderRadius: '8px', fontSize: '13px', color: 'var(--text-secondary)', cursor: 'pointer', fontWeight: '600' }}
+                                  >
+                                    Cancelar
+                                  </button>
+                                </div>
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                      </Fragment>
                     );
                   })}
                 </tbody>
@@ -987,6 +1231,7 @@ export default function StudentDetailPage() {
           const dynamicDocs = (studentService?.materialesConfig || []).map((mat: any) => ({
             title: mat.nombre,
             date: mat.caracteristicas || 'Material del Curso',
+            url: mat.url || null,
             icon: <BookOpen size={20} color="var(--brand-blue)" />
           }));
 
@@ -1020,7 +1265,19 @@ export default function StudentDetailPage() {
                           <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{doc.date}</div>
                         </div>
                       </div>
-                      <button style={{ background: 'transparent', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '8px', borderRadius: '50%', transition: 'var(--transition)' }} onMouseOver={e => { e.currentTarget.style.background = 'rgba(59, 130, 246, 0.1)'; e.currentTarget.style.color = 'var(--brand-blue)'; }} onMouseOut={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-secondary)'; }}>
+                      <button 
+                        onClick={() => {
+                          if (doc.url) {
+                            window.open(doc.url, '_blank');
+                          } else {
+                            alert('Este material no cuenta con un archivo digital adjunto.');
+                          }
+                        }}
+                        style={{ background: 'transparent', border: 'none', color: doc.url ? 'var(--brand-blue)' : 'var(--text-secondary)', cursor: doc.url ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '8px', borderRadius: '50%', transition: 'var(--transition)' }} 
+                        onMouseOver={e => { e.currentTarget.style.background = 'rgba(59, 130, 246, 0.1)'; e.currentTarget.style.color = 'var(--brand-blue)'; }} 
+                        onMouseOut={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = doc.url ? 'var(--brand-blue)' : 'var(--text-secondary)'; }}
+                        title={doc.url ? "Descargar / Ver material" : "Archivo no disponible"}
+                      >
                         <Download size={18} />
                       </button>
                     </div>
@@ -1112,7 +1369,9 @@ export default function StudentDetailPage() {
                       onClick={() => {
                         const firstUnpaid = cuotasList.find(c => c.status !== 'Pagada');
                         setSelectedCuotaToPay(firstUnpaid || null);
+                        setPaymentAmount(firstUnpaid ? firstUnpaid.monto.toString() : '');
                         setDownloadReceiptUrl(null);
+                        setComprobanteFile(null);
                         setShowPaymentModal(true);
                       }}
                     >
@@ -1197,6 +1456,35 @@ export default function StudentDetailPage() {
                               {cuota.fechaPago && (
                                 <div style={{ fontSize: '11px', color: '#16a34a', fontWeight: '500', marginTop: '2px' }}>
                                   Pagado el: {formatLocalDate(cuota.fechaPago)}
+                                </div>
+                              )}
+                              {cuota.comprobanteUrl && (
+                                <div style={{ marginTop: '8px' }}>
+                                  <button
+                                    onClick={() => window.open(cuota.comprobanteUrl, '_blank')}
+                                    style={{
+                                      background: 'rgba(59, 130, 246, 0.1)',
+                                      border: '1px solid rgba(59, 130, 246, 0.2)',
+                                      color: 'var(--brand-blue)',
+                                      padding: '4px 8px',
+                                      borderRadius: '6px',
+                                      fontSize: '11px',
+                                      fontWeight: '600',
+                                      cursor: 'pointer',
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: '4px',
+                                      transition: 'all 0.2s'
+                                    }}
+                                    onMouseOver={(e) => {
+                                      e.currentTarget.style.background = 'rgba(59, 130, 246, 0.15)';
+                                    }}
+                                    onMouseOut={(e) => {
+                                      e.currentTarget.style.background = 'rgba(59, 130, 246, 0.1)';
+                                    }}
+                                  >
+                                    <FileText size={12} /> Ver Comprobante
+                                  </button>
                                 </div>
                               )}
                             </div>
@@ -2075,6 +2363,7 @@ export default function StudentDetailPage() {
                             onClick={() => {
                               if (!isSubmittingPayment && !downloadReceiptUrl) {
                                 setSelectedCuotaToPay(cuota);
+                                setPaymentAmount(cuota.monto.toString());
                               }
                             }}
                             style={{
@@ -2118,6 +2407,103 @@ export default function StudentDetailPage() {
                     </div>
                   )}
                 </div>
+
+                {/* Monto a Pagar Variable */}
+                {selectedCuotaToPay && !downloadReceiptUrl && (
+                  <div style={{ marginTop: '16px', marginBottom: '20px' }}>
+                    <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#ffffff', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                      Monto a Pagar (MXN)
+                    </label>
+                    <input
+                      type="number"
+                      value={paymentAmount}
+                      onChange={(e) => setPaymentAmount(e.target.value)}
+                      placeholder="Monto a registrar"
+                      disabled={isSubmittingPayment}
+                      style={{
+                        width: '100%',
+                        padding: '10px 14px',
+                        background: 'rgba(255, 255, 255, 0.02)',
+                        border: '1px solid rgba(255, 255, 255, 0.15)',
+                        borderRadius: '10px',
+                        color: '#ffffff',
+                        fontSize: '14px',
+                        fontWeight: '600',
+                        outline: 'none',
+                        boxSizing: 'border-box'
+                      }}
+                    />
+                  </div>
+                )}
+
+                {/* Selector de Comprobante de Pago */}
+                {cuotasList.filter(c => c.status !== 'Pagada').length > 0 && !downloadReceiptUrl && (
+                  <div style={{ marginTop: '20px', borderTop: '1px solid rgba(255, 255, 255, 0.06)', paddingTop: '20px', marginBottom: '24px' }}>
+                    <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#ffffff', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                      Subir Comprobante de Pago (Imagen)
+                    </label>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      <input 
+                        type="file" 
+                        id="comprobante-input"
+                        accept="image/*" 
+                        style={{ display: 'none' }}
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            const MAX_SIZE_MB = 5;
+                            if (file.size > MAX_SIZE_MB * 1024 * 1024) {
+                              setFeedback({ message: `Error: El comprobante supera el límite de ${MAX_SIZE_MB}MB.`, type: 'error' });
+                              return;
+                            }
+                            setComprobanteFile(file);
+                          }
+                        }}
+                      />
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                        <button
+                          type="button"
+                          className="btn-secondary"
+                          onClick={() => document.getElementById('comprobante-input')?.click()}
+                          style={{
+                            padding: '8px 16px',
+                            background: 'rgba(255,255,255,0.05)',
+                            border: '1px solid rgba(255,255,255,0.15)',
+                            color: '#fff',
+                            borderRadius: '8px',
+                            cursor: 'pointer',
+                            fontSize: '12px',
+                            fontWeight: '600',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '6px'
+                          }}
+                        >
+                          <UploadCloud size={14} /> Seleccionar Imagen
+                        </button>
+                        {comprobanteFile && (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.7)', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', maxWidth: '200px' }}>
+                              {comprobanteFile.name}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => setComprobanteFile(null)}
+                              style={{ background: 'transparent', border: 'none', color: '#ef4444', fontSize: '11px', fontWeight: '600', cursor: 'pointer' }}
+                            >
+                              Eliminar
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                      {!comprobanteFile && (
+                        <div style={{ fontSize: '11px', color: '#ef4444', fontWeight: '500', marginTop: '4px' }}>
+                          * El comprobante de pago es obligatorio para registrar la mensualidad.
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
 
                 {/* Botón de Comprobante PDF (Si se generó con éxito) */}
                 {downloadReceiptUrl && (
@@ -2180,15 +2566,38 @@ export default function StudentDetailPage() {
                   >
                     Cerrar
                   </button>
-                  {cuotasList.filter(c => c.status !== 'Pagada').length > 0 && !downloadReceiptUrl && (
+                   {cuotasList.filter(c => c.status !== 'Pagada').length > 0 && !downloadReceiptUrl && (
                     <button
                       type="button"
-                      disabled={!selectedCuotaToPay || isSubmittingPayment}
+                      disabled={!selectedCuotaToPay || !comprobanteFile || isSubmittingPayment || !paymentAmount}
                       onClick={async () => {
-                        if (!selectedCuotaToPay) return;
+                        if (!selectedCuotaToPay || !comprobanteFile || !paymentAmount) return;
+                        const parsedAmount = parseFloat(paymentAmount);
+                        if (isNaN(parsedAmount) || parsedAmount <= 0) {
+                          setFeedback({ message: 'Por favor, ingresa un monto válido.', type: 'error' });
+                          return;
+                        }
                         setIsSubmittingPayment(true);
                         try {
-                          const receiptUrl = await useAppStore.getState().recordStudentPayment(selectedStudent.id, selectedCuotaToPay.monto);
+                          // 1. Subir imagen de comprobante a Supabase
+                          const formData = new FormData();
+                          formData.append('file', comprobanteFile);
+                          formData.append('folder', `alumnos/id/${selectedStudent.id}/comprobantes`);
+
+                          const uploadRes = await apiClient.post('/uploads/private', formData, {
+                            headers: {
+                              'Content-Type': 'multipart/form-data'
+                            }
+                          });
+                          const comprobanteUrl = uploadRes.data.url;
+
+                          // 2. Registrar el pago pasándole la URL de comprobante
+                          const receiptUrl = await useAppStore.getState().recordStudentPayment(
+                            selectedStudent.id, 
+                            parsedAmount,
+                            comprobanteUrl
+                          );
+
                           setFeedback({ message: `¡Abono de Mensualidad #${selectedCuotaToPay.numeroPago} registrado con éxito! 🔒`, type: 'success' });
                           if (receiptUrl) {
                             setDownloadReceiptUrl(receiptUrl);
@@ -2205,14 +2614,14 @@ export default function StudentDetailPage() {
                         }
                       }}
                       style={{
-                        background: selectedCuotaToPay ? 'linear-gradient(135deg, var(--brand-yellow), #ca8a04)' : 'rgba(255,255,255,0.05)',
+                        background: (selectedCuotaToPay && comprobanteFile && paymentAmount) ? 'linear-gradient(135deg, var(--brand-yellow), #ca8a04)' : 'rgba(255,255,255,0.05)',
                         border: 'none',
                         padding: '10px 24px',
                         borderRadius: '10px',
-                        color: selectedCuotaToPay ? '#161c2d' : 'rgba(255,255,255,0.3)',
+                        color: (selectedCuotaToPay && comprobanteFile && paymentAmount) ? '#161c2d' : 'rgba(255,255,255,0.3)',
                         fontSize: '13px',
                         fontWeight: '700',
-                        cursor: selectedCuotaToPay ? 'pointer' : 'not-allowed',
+                        cursor: (selectedCuotaToPay && comprobanteFile && paymentAmount) ? 'pointer' : 'not-allowed',
                         opacity: isSubmittingPayment ? 0.7 : 1,
                         display: 'flex',
                         alignItems: 'center',

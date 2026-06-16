@@ -3,13 +3,14 @@ import {
   HeartHandshake, Search, Plus, List, Grid, MapPin, 
   Phone, Mail, GraduationCap, Calendar, X, Send, 
   Trash2, Edit3, Smartphone, ExternalLink, MessageSquare, 
-  TrendingUp, Check, AlertCircle, Clock, User, FileSpreadsheet
+  TrendingUp, Check, AlertCircle, Clock, User, FileSpreadsheet, Loader2
 } from 'lucide-react';
 import { useAppStore } from '../store/useAppStore';
 import type { CRMProspect, CRMFollowUpLog } from '../store/useAppStore';
 import Modal from '../components/Modal';
 import ConfirmModal from '../components/ConfirmModal';
 import Toast from '../components/Toast';
+import apiClient from '../api/apiClient';
 
 export default function CRMPage() {
   const { 
@@ -25,6 +26,36 @@ export default function CRMPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('All');
   const [modalityFilter, setModalityFilter] = useState<string>('All');
+  const [isImporting, setIsImporting] = useState(false);
+
+  const handleImportIMSS = async () => {
+    setIsImporting(true);
+    try {
+      const response = await apiClient.get('/alumnos/import-imss/prospects');
+      const leads = response.data || [];
+
+      let countAdded = 0;
+      const currentProspects = useAppStore.getState().prospects;
+
+      for (const lead of leads) {
+        const exists = currentProspects.some(
+          p => p.nombre.toLowerCase() === lead.nombre.toLowerCase() || p.telefono === lead.telefono
+        );
+
+        if (!exists) {
+          addProspect(lead);
+          countAdded++;
+        }
+      }
+
+      showToast(`Se importaron ${countAdded} nuevos prospectos del IMSS.`, 'success');
+    } catch (error) {
+      console.error(error);
+      showToast('Error al importar los prospectos del IMSS.', 'error');
+    } finally {
+      setIsImporting(false);
+    }
+  };
 
   // Estados para Modales
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -434,6 +465,28 @@ export default function CRMPage() {
             }}
           >
             <FileSpreadsheet size={18} /> Reporte Excel
+          </button>
+          <button 
+            className="btn-secondary" 
+            disabled={isImporting}
+            onClick={handleImportIMSS}
+            style={{ 
+              padding: '12px 24px', 
+              background: 'rgba(59, 130, 246, 0.08)', 
+              color: '#3b82f6', 
+              border: '1px solid rgba(59, 130, 246, 0.2)', 
+              borderRadius: 'var(--radius-md)', 
+              fontWeight: '600', 
+              fontSize: '15px',
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: '8px', 
+              cursor: isImporting ? 'not-allowed' : 'pointer',
+              transition: 'var(--transition)'
+            }}
+          >
+            {isImporting ? <Loader2 size={18} className="animate-spin" /> : <FileSpreadsheet size={18} />}
+            <span>Importar Leads IMSS</span>
           </button>
           <button 
             className="btn-primary" 

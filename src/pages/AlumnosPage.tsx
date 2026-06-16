@@ -1,12 +1,13 @@
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { UserPlus, BookOpen, Phone, TrendingUp, MoreVertical } from 'lucide-react';
+import { UserPlus, BookOpen, Phone, TrendingUp, MoreVertical, Search } from 'lucide-react';
 import { useAppStore } from '../store/useAppStore';
 
 export default function AlumnosPage() {
   const navigate = useNavigate();
   const { students } = useAppStore();
   const [activeTab, setActiveTab] = useState<'Todos' | 'Pendiente Docs' | 'Activo - Al Corriente' | 'Activo - Con Adeudos' | 'Inactivo'>('Todos');
+  const [searchTerm, setSearchTerm] = useState('');
 
   const countAll = students.length;
   const countPendiente = students.filter(s => s.status === 'Pendiente Docs').length;
@@ -15,9 +16,21 @@ export default function AlumnosPage() {
   const countInactivo = students.filter(s => s.status === 'Inactivo').length;
 
   const filteredStudents = useMemo(() => {
-    if (activeTab === 'Todos') return students;
-    return students.filter(s => s.status === activeTab);
-  }, [students, activeTab]);
+    let result = students;
+    if (activeTab !== 'Todos') {
+      result = result.filter(s => s.status === activeTab);
+    }
+    if (searchTerm.trim()) {
+      const term = searchTerm.toLowerCase();
+      result = result.filter(s => 
+        s.name.toLowerCase().includes(term) ||
+        s.tutor.toLowerCase().includes(term) ||
+        String(s.id).toLowerCase().includes(term) ||
+        (s.phone && s.phone.includes(term))
+      );
+    }
+    return result;
+  }, [students, activeTab, searchTerm]);
 
   return (
     <div className="alumnos-view" style={{ padding: '0 40px 40px' }}>
@@ -42,91 +55,106 @@ export default function AlumnosPage() {
         </button>
       </div>
 
-      {/* Pestañas de Estatus */}
-      <div style={{ display: 'flex', gap: '8px', marginBottom: '16px', overflowX: 'auto', paddingBottom: '4px' }}>
-        {(['Todos', 'Pendiente Docs', 'Activo - Al Corriente', 'Activo - Con Adeudos', 'Inactivo'] as const).map((tab) => {
-          const isActive = activeTab === tab;
-          let count = 0;
-          let tabColor = 'var(--text-secondary)';
-          let activeBg = 'rgba(255, 255, 255, 0.08)';
-          let activeBorder = 'rgba(255, 255, 255, 0.15)';
-          
-          if (tab === 'Todos') {
-            count = countAll;
-            tabColor = 'var(--brand-blue)';
-            activeBg = 'rgba(59, 130, 246, 0.1)';
-            activeBorder = 'rgba(59, 130, 246, 0.3)';
-          } else if (tab === 'Pendiente Docs') {
-            count = countPendiente;
-            tabColor = '#ca8a04';
-            activeBg = 'rgba(234, 179, 8, 0.1)';
-            activeBorder = 'rgba(234, 179, 8, 0.3)';
-          } else if (tab === 'Activo - Al Corriente') {
-            count = countCorriente;
-            tabColor = '#16a34a';
-            activeBg = 'rgba(34, 197, 94, 0.1)';
-            activeBorder = 'rgba(34, 197, 94, 0.3)';
-          } else if (tab === 'Activo - Con Adeudos') {
-            count = countAdeudos;
-            tabColor = '#ef4444';
-            activeBg = 'rgba(239, 68, 68, 0.1)';
-            activeBorder = 'rgba(239, 68, 68, 0.3)';
-          } else if (tab === 'Inactivo') {
-            count = countInactivo;
-            tabColor = '#64748b';
-            activeBg = 'rgba(100, 116, 139, 0.15)';
-            activeBorder = 'rgba(100, 116, 139, 0.3)';
-          }
+      {/* Contenedor Filtros y Búsqueda */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '16px' }}>
+        {/* Pestañas de Estatus */}
+        <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '4px' }}>
+          {(['Todos', 'Pendiente Docs', 'Activo - Al Corriente', 'Activo - Con Adeudos', 'Inactivo'] as const).map((tab) => {
+            const isActive = activeTab === tab;
+            let count = 0;
+            let tabColor = 'var(--text-secondary)';
+            let activeBg = 'rgba(255, 255, 255, 0.08)';
+            let activeBorder = 'rgba(255, 255, 255, 0.15)';
+            
+            if (tab === 'Todos') {
+              count = countAll;
+              tabColor = 'var(--brand-blue)';
+              activeBg = 'rgba(59, 130, 246, 0.1)';
+              activeBorder = 'rgba(59, 130, 246, 0.3)';
+            } else if (tab === 'Pendiente Docs') {
+              count = countPendiente;
+              tabColor = '#ca8a04';
+              activeBg = 'rgba(234, 179, 8, 0.1)';
+              activeBorder = 'rgba(234, 179, 8, 0.3)';
+            } else if (tab === 'Activo - Al Corriente') {
+              count = countCorriente;
+              tabColor = '#16a34a';
+              activeBg = 'rgba(34, 197, 94, 0.1)';
+              activeBorder = 'rgba(34, 197, 94, 0.3)';
+            } else if (tab === 'Activo - Con Adeudos') {
+              count = countAdeudos;
+              tabColor = '#ef4444';
+              activeBg = 'rgba(239, 68, 68, 0.1)';
+              activeBorder = 'rgba(239, 68, 68, 0.3)';
+            } else if (tab === 'Inactivo') {
+              count = countInactivo;
+              tabColor = '#64748b';
+              activeBg = 'rgba(100, 116, 139, 0.15)';
+              activeBorder = 'rgba(100, 116, 139, 0.3)';
+            }
 
-          return (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              style={{
-                padding: '8px 16px',
-                borderRadius: '8px',
-                fontSize: '13px',
-                fontWeight: '600',
-                background: isActive ? activeBg : 'rgba(255, 255, 255, 0.02)',
-                color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)',
-                border: isActive ? `1px solid ${activeBorder}` : '1px solid var(--border-color)',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                transition: 'all 0.2s ease',
-                whiteSpace: 'nowrap'
-              }}
-              onMouseOver={(e) => {
-                if (!isActive) {
-                  e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
-                  e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.1)';
-                }
-              }}
-              onMouseOut={(e) => {
-                if (!isActive) {
-                  e.currentTarget.style.background = 'rgba(255, 255, 255, 0.02)';
-                  e.currentTarget.style.borderColor = 'var(--border-color)';
-                }
-              }}
-            >
-              <span>{tab === 'Todos' ? 'Todos los Alumnos' : tab}</span>
-              <span style={{
-                fontSize: '11px',
-                fontWeight: '700',
-                padding: '2px 6px',
-                borderRadius: '100px',
-                background: isActive ? tabColor : 'rgba(255,255,255,0.05)',
-                color: isActive ? '#fff' : 'var(--text-secondary)',
-                minWidth: '16px',
-                textAlign: 'center',
-                transition: 'all 0.2s ease'
-              }}>
-                {count}
-              </span>
-            </button>
-          );
-        })}
+            return (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                style={{
+                  padding: '8px 16px',
+                  borderRadius: '8px',
+                  fontSize: '13px',
+                  fontWeight: '600',
+                  background: isActive ? activeBg : 'rgba(255, 255, 255, 0.02)',
+                  color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)',
+                  border: isActive ? `1px solid ${activeBorder}` : '1px solid var(--border-color)',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  transition: 'all 0.2s ease',
+                  whiteSpace: 'nowrap'
+                }}
+                onMouseOver={(e) => {
+                  if (!isActive) {
+                    e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
+                    e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.1)';
+                  }
+                }}
+                onMouseOut={(e) => {
+                  if (!isActive) {
+                    e.currentTarget.style.background = 'rgba(255, 255, 255, 0.02)';
+                    e.currentTarget.style.borderColor = 'var(--border-color)';
+                  }
+                }}
+              >
+                <span>{tab === 'Todos' ? 'Todos los Alumnos' : tab}</span>
+                <span style={{
+                  fontSize: '11px',
+                  fontWeight: '700',
+                  padding: '2px 6px',
+                  borderRadius: '100px',
+                  background: isActive ? tabColor : 'rgba(255,255,255,0.05)',
+                  color: isActive ? '#fff' : 'var(--text-secondary)',
+                  minWidth: '16px',
+                  textAlign: 'center',
+                  transition: 'all 0.2s ease'
+                }}>
+                  {count}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Buscador */}
+        <div style={{ display: 'flex', alignItems: 'center', padding: '8px 16px', background: 'rgba(255, 255, 255, 0.02)', border: '1px solid var(--border-color)', borderRadius: '8px', width: '300px', height: '38px', boxSizing: 'border-box' }}>
+          <Search size={16} style={{ color: 'var(--text-secondary)', marginRight: '8px' }} />
+          <input 
+            type="text" 
+            placeholder="Buscar por nombre, tutor o ID..." 
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            style={{ background: 'none', border: 'none', color: 'var(--text-primary)', outline: 'none', width: '100%', fontSize: '13px', fontFamily: 'inherit' }}
+          />
+        </div>
       </div>
 
       {/* VISTA DE ALUMNOS (EXPEDIENTE) */}

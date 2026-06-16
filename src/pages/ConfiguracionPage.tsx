@@ -5,10 +5,12 @@ import {
   Check, AlertCircle,
   Coins, Folder, FolderOpen, ChevronRight, ChevronDown, 
   CornerDownRight, Layers, Trash2, Pencil, X, AlertTriangle,
-  Link2, Lock, Unlock, Users, DollarSign, Briefcase, Clock, BookOpen
+  Link2, Lock, Unlock, Users, DollarSign, Briefcase, Clock, BookOpen,
+  UploadCloud, CheckCircle2
 } from 'lucide-react';
 import { useAppStore } from '../store/useAppStore';
 import type { Category } from '../store/useAppStore';
+import apiClient from '../api/apiClient';
 
 const DOCS_DESC_FALLBACK: Record<string, string> = {
   'Acta de Nacimiento': 'Copia certificada legible.',
@@ -85,7 +87,7 @@ export default function ConfiguracionPage() {
     descripcion: '',
     duracionMeses: 3,
     documentosConfig: [] as { nombre: string; caracteristicas: string }[],
-    materialesConfig: [] as { nombre: string; caracteristicas: string }[],
+    materialesConfig: [] as { nombre: string; caracteristicas: string; url?: string }[],
     proceso: '',
     tieneCertificado: false,
     requiereEvidencia: false
@@ -2338,13 +2340,95 @@ export default function ConfiguracionPage() {
                         }}
                         style={{ flex: 1, padding: '10px 12px', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: '#fff', fontSize: '13px', outline: 'none' }}
                       />
+
+                      {/* Subir Archivo PDF/Doc */}
+                      <div style={{ display: 'flex', alignItems: 'center' }}>
+                        <input 
+                          type="file"
+                          id={`new-mat-file-${idx}`}
+                          accept=".pdf,.doc,.docx"
+                          style={{ display: 'none' }}
+                          onChange={async (e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              try {
+                                const formData = new FormData();
+                                formData.append('file', file);
+                                formData.append('folder', 'general/materiales');
+                                const cleanMatName = mat.nombre ? mat.nombre.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase() : 'material';
+                                const targetName = `${cleanMatName}-${Date.now()}`;
+                                formData.append('fileName', targetName);
+
+                                const uploadRes = await apiClient.post('/uploads/public', formData, {
+                                  headers: {
+                                    'Content-Type': 'multipart/form-data'
+                                  }
+                                });
+                                
+                                const updated = [...newServicio.materialesConfig];
+                                updated[idx] = { ...updated[idx], url: uploadRes.data.url };
+                                setNewServicio({ ...newServicio, materialesConfig: updated });
+                              } catch (err) {
+                                console.error('Error al subir material:', err);
+                                setFeedback({ message: 'Error al subir el archivo del material.', type: 'error' });
+                              }
+                            }
+                          }}
+                        />
+                        {mat.url ? (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            <button
+                              type="button"
+                              onClick={async () => {
+                                if (mat.url && mat.url.startsWith('http') && mat.url.includes('amazonaws.com') && !mat.url.includes('Signature=')) {
+                                  try {
+                                    const res = await apiClient.get(`/uploads/presigned?url=${encodeURIComponent(mat.url)}`);
+                                    window.open(res.data.url, '_blank');
+                                  } catch (err) {
+                                    console.error('Error al firmar URL:', err);
+                                    window.open(mat.url, '_blank');
+                                  }
+                                } else if (mat.url) {
+                                  window.open(mat.url, '_blank');
+                                }
+                              }}
+                              title="Visualizar archivo cargado"
+                              style={{ padding: '8px 12px', background: 'rgba(16,185,129,0.15)', border: '1px solid rgba(16,185,129,0.3)', borderRadius: '8px', color: '#10b981', fontSize: '12px', fontWeight: '600', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', height: '38px' }}
+                            >
+                              <CheckCircle2 size={12} /> Ver
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const updated = [...newServicio.materialesConfig];
+                                updated[idx] = { ...updated[idx], url: '' };
+                                setNewServicio({ ...newServicio, materialesConfig: updated });
+                              }}
+                              style={{ padding: '10px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: '#9ca3af', cursor: 'pointer', height: '38px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                              title="Quitar archivo adjunto"
+                            >
+                              <X size={14} />
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => document.getElementById(`new-mat-file-${idx}`)?.click()}
+                            disabled={!mat.nombre}
+                            style={{ padding: '8px 12px', background: mat.nombre ? 'rgba(59,130,246,0.15)' : 'rgba(255,255,255,0.03)', border: `1px solid ${mat.nombre ? 'rgba(59,130,246,0.3)' : 'rgba(255,255,255,0.1)'}`, borderRadius: '8px', color: mat.nombre ? '#60a5fa' : 'rgba(255,255,255,0.3)', fontSize: '12px', fontWeight: '600', cursor: mat.nombre ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', gap: '4px', height: '38px' }}
+                          >
+                            <UploadCloud size={14} /> Adjuntar
+                          </button>
+                        )}
+                      </div>
+
                       <button
                         type="button"
                         onClick={() => {
                           const updated = newServicio.materialesConfig.filter((_, i) => i !== idx);
                           setNewServicio({ ...newServicio, materialesConfig: updated });
                         }}
-                        style={{ background: 'rgba(239,68,68,0.15)', border: 'none', borderRadius: '8px', padding: '10px', cursor: 'pointer', color: '#ef4444', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                        style={{ background: 'rgba(239,68,68,0.15)', border: 'none', borderRadius: '8px', padding: '10px', cursor: 'pointer', color: '#ef4444', display: 'flex', alignItems: 'center', justifyContent: 'center', height: '38px' }}
                       >
                         <Trash2 size={16} />
                       </button>
@@ -2356,7 +2440,7 @@ export default function ConfiguracionPage() {
                   onClick={() => {
                     setNewServicio({
                       ...newServicio,
-                      materialesConfig: [...newServicio.materialesConfig, { nombre: '', caracteristicas: '' }]
+                      materialesConfig: [...newServicio.materialesConfig, { nombre: '', caracteristicas: '', url: '' }]
                     });
                   }}
                   style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '8px 16px', background: 'rgba(59,130,246,0.15)', border: '1px dashed rgba(59,130,246,0.4)', borderRadius: '8px', color: '#60a5fa', fontSize: '12px', fontWeight: '600', cursor: 'pointer', transition: 'all 0.2s' }}
@@ -2522,13 +2606,95 @@ export default function ConfiguracionPage() {
                         }}
                         style={{ flex: 1, padding: '10px 12px', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: '#fff', fontSize: '13px', outline: 'none' }}
                       />
+
+                      {/* Subir Archivo PDF/Doc */}
+                      <div style={{ display: 'flex', alignItems: 'center' }}>
+                        <input 
+                          type="file"
+                          id={`edit-mat-file-${idx}`}
+                          accept=".pdf,.doc,.docx"
+                          style={{ display: 'none' }}
+                          onChange={async (e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              try {
+                                const formData = new FormData();
+                                formData.append('file', file);
+                                formData.append('folder', 'general/materiales');
+                                const cleanMatName = mat.nombre ? mat.nombre.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase() : 'material';
+                                const targetName = `${cleanMatName}-${Date.now()}`;
+                                formData.append('fileName', targetName);
+
+                                const uploadRes = await apiClient.post('/uploads/public', formData, {
+                                  headers: {
+                                    'Content-Type': 'multipart/form-data'
+                                  }
+                                });
+                                
+                                const updated = [...(editingServicio.materialesConfig || [])];
+                                updated[idx] = { ...updated[idx], url: uploadRes.data.url };
+                                setEditingServicio({ ...editingServicio, materialesConfig: updated });
+                              } catch (err) {
+                                console.error('Error al subir material:', err);
+                                setFeedback({ message: 'Error al subir el archivo del material.', type: 'error' });
+                              }
+                            }
+                          }}
+                        />
+                        {mat.url ? (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            <button
+                              type="button"
+                              onClick={async () => {
+                                if (mat.url && mat.url.startsWith('http') && mat.url.includes('amazonaws.com') && !mat.url.includes('Signature=')) {
+                                  try {
+                                    const res = await apiClient.get(`/uploads/presigned?url=${encodeURIComponent(mat.url)}`);
+                                    window.open(res.data.url, '_blank');
+                                  } catch (err) {
+                                    console.error('Error al firmar URL:', err);
+                                    window.open(mat.url, '_blank');
+                                  }
+                                } else if (mat.url) {
+                                  window.open(mat.url, '_blank');
+                                }
+                              }}
+                              title="Visualizar archivo cargado"
+                              style={{ padding: '8px 12px', background: 'rgba(16,185,129,0.15)', border: '1px solid rgba(16,185,129,0.3)', borderRadius: '8px', color: '#10b981', fontSize: '12px', fontWeight: '600', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', height: '38px' }}
+                            >
+                              <CheckCircle2 size={12} /> Ver
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const updated = [...(editingServicio.materialesConfig || [])];
+                                updated[idx] = { ...updated[idx], url: '' };
+                                setEditingServicio({ ...editingServicio, materialesConfig: updated });
+                              }}
+                              style={{ padding: '10px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: '#9ca3af', cursor: 'pointer', height: '38px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                              title="Quitar archivo adjunto"
+                            >
+                              <X size={14} />
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => document.getElementById(`edit-mat-file-${idx}`)?.click()}
+                            disabled={!mat.nombre}
+                            style={{ padding: '8px 12px', background: mat.nombre ? 'rgba(59,130,246,0.15)' : 'rgba(255,255,255,0.03)', border: `1px solid ${mat.nombre ? 'rgba(59,130,246,0.3)' : 'rgba(255,255,255,0.1)'}`, borderRadius: '8px', color: mat.nombre ? '#60a5fa' : 'rgba(255,255,255,0.3)', fontSize: '12px', fontWeight: '600', cursor: mat.nombre ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', gap: '4px', height: '38px' }}
+                          >
+                            <UploadCloud size={14} /> Adjuntar
+                          </button>
+                        )}
+                      </div>
+
                       <button
                         type="button"
                         onClick={() => {
                           const updated = (editingServicio.materialesConfig || []).filter((_: any, i: number) => i !== idx);
                           setEditingServicio({ ...editingServicio, materialesConfig: updated });
                         }}
-                        style={{ background: 'rgba(239,68,68,0.15)', border: 'none', borderRadius: '8px', padding: '10px', cursor: 'pointer', color: '#ef4444', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                        style={{ background: 'rgba(239,68,68,0.15)', border: 'none', borderRadius: '8px', padding: '10px', cursor: 'pointer', color: '#ef4444', display: 'flex', alignItems: 'center', justifyContent: 'center', height: '38px' }}
                       >
                         <Trash2 size={16} />
                       </button>
@@ -2540,7 +2706,7 @@ export default function ConfiguracionPage() {
                   onClick={() => {
                     setEditingServicio({
                       ...editingServicio,
-                      materialesConfig: [...(editingServicio.materialesConfig || []), { nombre: '', caracteristicas: '' }]
+                      materialesConfig: [...(editingServicio.materialesConfig || []), { nombre: '', caracteristicas: '', url: '' }]
                     });
                   }}
                   style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '8px 16px', background: 'rgba(59,130,246,0.15)', border: '1px dashed rgba(59,130,246,0.4)', borderRadius: '8px', color: '#60a5fa', fontSize: '12px', fontWeight: '600', cursor: 'pointer', transition: 'all 0.2s' }}
