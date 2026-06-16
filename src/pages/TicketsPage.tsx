@@ -1,16 +1,15 @@
 import { useState, useEffect, useRef } from 'react';
 import { 
-  Ticket, MessageSquare, Filter, AlertTriangle, CheckCircle2, 
-  Eye, Download, Search, X, Loader2, Send, Calendar, User, 
-  Info, Check, Plus, AlertCircle, Clock, ShieldAlert, ArrowLeftRight
+  MessageSquare, Filter, AlertTriangle, CheckCircle2, 
+  Eye, Search, X, Loader2, Send, 
+  Check, Plus, AlertCircle, Clock
 } from 'lucide-react';
 import { useAppStore } from '../store/useAppStore';
-import type { Student, Ticket as ITicket, TicketMessage } from '../store/useAppStore';
+import type { TicketMessage } from '../store/useAppStore';
 import apiClient from '../api/apiClient';
 
 export default function TicketsPage() {
   const { 
-    students,
     tickets,
     activeTicket,
     fetchTickets,
@@ -22,7 +21,6 @@ export default function TicketsPage() {
     fetchUsuarios
   } = useAppStore();
 
-  const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isReplying, setIsReplying] = useState(false);
   
@@ -35,8 +33,6 @@ export default function TicketsPage() {
   const [descripcion, setDescripcion] = useState('');
   const [categoria, setCategoria] = useState('Soporte');
   const [prioridad, setPrioridad] = useState('MEDIA');
-  const [tipoTicket, setTipoTicket] = useState<'ADMINISTRATIVO' | 'ESTUDIANTE'>('ADMINISTRATIVO');
-  const [creatorAlumnoId, setCreatorAlumnoId] = useState('');
   
   // Adjunto de archivo en nuevo ticket
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -56,12 +52,10 @@ export default function TicketsPage() {
 
   useEffect(() => {
     const loadData = async () => {
-      setIsLoading(true);
       await Promise.all([
         fetchStudents(),
         fetchUsuarios()
       ]);
-      setIsLoading(false);
     };
     loadData();
   }, [fetchStudents, fetchUsuarios]);
@@ -78,13 +72,11 @@ export default function TicketsPage() {
 
   // Cargar tickets con filtros
   const handleApplyFilters = async () => {
-    setIsLoading(true);
     await fetchTickets({
       tipoTicket: filterTipo || undefined,
       status: filterStatus || undefined,
       categoria: filterCategoria || undefined
     });
-    setIsLoading(false);
   };
 
   useEffect(() => {

@@ -1,12 +1,12 @@
 import React, { useState, useMemo } from 'react';
 import { 
   HeartHandshake, Search, Plus, List, Grid, MapPin, 
-  Phone, Mail, GraduationCap, Calendar, X, Send, 
-  Trash2, Edit3, Smartphone, ExternalLink, MessageSquare, 
-  TrendingUp, Check, AlertCircle, Clock, User, FileSpreadsheet, Loader2
+  Phone, Mail, GraduationCap, Calendar, Send, 
+  Trash2, Edit3, Smartphone, MessageSquare, 
+  TrendingUp, Check, Clock, User, FileSpreadsheet, Loader2
 } from 'lucide-react';
 import { useAppStore } from '../store/useAppStore';
-import type { CRMProspect, CRMFollowUpLog } from '../store/useAppStore';
+import type { CRMProspect } from '../store/useAppStore';
 import Modal from '../components/Modal';
 import ConfirmModal from '../components/ConfirmModal';
 import Toast from '../components/Toast';
@@ -1062,7 +1062,7 @@ export default function CRMPage() {
                 Modalidad preferida
               </label>
               <div style={{ display: 'flex', gap: '10px' }}>
-                <label style={{ flex: 1, height: '42px', border: '1px solid var(--border-color)', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', cursor: 'pointer', background: formModalidad === 'Presencial' ? 'rgba(15, 56, 105, 0.08)' : 'var(--bg-card)', bordercolor: formModalidad === 'Presencial' ? 'var(--brand-blue)' : 'var(--border-color)', fontSize: '14px', fontWeight: '600', color: formModalidad === 'Presencial' ? 'var(--brand-blue)' : 'var(--text-secondary)', transition: 'var(--transition)' }}>
+                <label style={{ flex: 1, height: '42px', border: '1px solid var(--border-color)', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', cursor: 'pointer', background: formModalidad === 'Presencial' ? 'rgba(15, 56, 105, 0.08)' : 'var(--bg-card)', borderColor: formModalidad === 'Presencial' ? 'var(--brand-blue)' : 'var(--border-color)', fontSize: '14px', fontWeight: '600', color: formModalidad === 'Presencial' ? 'var(--brand-blue)' : 'var(--text-secondary)', transition: 'var(--transition)' }}>
                   <input 
                     type="radio" 
                     name="formModalidad"
@@ -1072,7 +1072,7 @@ export default function CRMPage() {
                   />
                   Presencial
                 </label>
-                <label style={{ flex: 1, height: '42px', border: '1px solid var(--border-color)', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', cursor: 'pointer', background: formModalidad === 'Digital' ? 'rgba(139, 92, 246, 0.08)' : 'var(--bg-card)', bordercolor: formModalidad === 'Digital' ? '#8b5cf6' : 'var(--border-color)', fontSize: '14px', fontWeight: '600', color: formModalidad === 'Digital' ? '#8b5cf6' : 'var(--text-secondary)', transition: 'var(--transition)' }}>
+                <label style={{ flex: 1, height: '42px', border: '1px solid var(--border-color)', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', cursor: 'pointer', background: formModalidad === 'Digital' ? 'rgba(139, 92, 246, 0.08)' : 'var(--bg-card)', borderColor: formModalidad === 'Digital' ? '#8b5cf6' : 'var(--border-color)', fontSize: '14px', fontWeight: '600', color: formModalidad === 'Digital' ? '#8b5cf6' : 'var(--text-secondary)', transition: 'var(--transition)' }}>
                   <input 
                     type="radio" 
                     name="formModalidad"

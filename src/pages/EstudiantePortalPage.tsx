@@ -7,9 +7,9 @@ import {
   Sun, Moon, Download, Upload, LifeBuoy, Send, Plus
 } from 'lucide-react';
 import { useAppStore } from '../store/useAppStore';
-import type { Student, ExamAttempt, Ticket, TicketMessage } from '../store/useAppStore';
+import type { Student, ExamAttempt, TicketMessage } from '../store/useAppStore';
 import {
-  ResponsiveContainer, AreaChart, Area, CartesianGrid, XAxis, YAxis, Tooltip, ReferenceLine
+  ResponsiveContainer, AreaChart, Area, CartesianGrid, XAxis, YAxis, Tooltip
 } from 'recharts';
 import apiClient from '../api/apiClient';
 
@@ -1268,7 +1268,7 @@ export default function EstudiantePortalPage() {
                                     {msg.sender}
                                   </span>
                                   <span>
-                                    {msg.sentAt.split(',')[0]}
+                                    {(msg.sentAt || '').split(',')[0]}
                                   </span>
                                 </div>
 
@@ -1562,7 +1562,7 @@ export default function EstudiantePortalPage() {
                               <div style={{ marginTop: '8px' }}>
                                 <button
                                   type="button"
-                                  onClick={() => handleViewDocument(selectedTicket.adjuntoUrl)}
+                                  onClick={() => handleViewDocument(selectedTicket.adjuntoUrl || undefined)}
                                   style={{
                                     background: 'rgba(255, 255, 255, 0.03)',
                                     border: '1px solid var(--inner-card-border)',

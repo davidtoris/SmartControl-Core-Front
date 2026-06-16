@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react';
 import { 
-  Megaphone, MessageSquare, Filter, AlertTriangle, CheckCircle2, 
-  Eye, Download, GraduationCap, ShieldCheck, Search, TrendingUp, 
-  X, Loader2, Send, Calendar, User, Info, Check, EyeOff
+  Megaphone, MessageSquare, AlertTriangle, CheckCircle2, 
+  Eye, Download, ShieldCheck, Search, TrendingUp, 
+  X, Loader2, Send, Info, EyeOff
 } from 'lucide-react';
 import { useAppStore } from '../store/useAppStore';
-import type { Student, StudentMessage } from '../store/useAppStore';
+import type { StudentMessage } from '../store/useAppStore';
 
 export default function ComunicacionPage() {
   const { 
@@ -121,7 +121,7 @@ export default function ComunicacionPage() {
 
       // Encontrar nombre del alumno
       const stud = students.find(s => String(s.id) === String(pdfStudentId));
-      const studName = stud ? stud.nombre.replace(/\s+/g, '_') : 'alumno';
+      const studName = stud ? stud.name.replace(/\s+/g, '_') : 'alumno';
 
       link.setAttribute('download', `Bitacora_Evidencia_${studName}.pdf`);
       document.body.appendChild(link);
@@ -141,7 +141,7 @@ export default function ComunicacionPage() {
 
   // Filtrar alumnos para el autocompletar de bitácora
   const filteredStudentsForPdf = students.filter(s => 
-    (s.nombre?.toLowerCase() || '').includes(pdfSearchTerm.toLowerCase()) || 
+    (s.name?.toLowerCase() || '').includes(pdfSearchTerm.toLowerCase()) || 
     (s.curso?.toLowerCase() || '').includes(pdfSearchTerm.toLowerCase())
   );
 
@@ -495,11 +495,11 @@ export default function ComunicacionPage() {
                         className="autocomplete-item"
                         onClick={() => {
                           setPdfStudentId(String(stud.id));
-                          setPdfSearchTerm(stud.nombre);
+                          setPdfSearchTerm(stud.name);
                           setShowPdfSearchDropdown(false);
                         }}
                       >
-                        <strong style={{ display: 'block' }}>{stud.nombre}</strong>
+                        <strong style={{ display: 'block' }}>{stud.name}</strong>
                         <span style={{ fontSize: '10px', color: 'var(--text-secondary)' }}>Curso: {stud.curso}</span>
                       </div>
                     ))
@@ -677,7 +677,7 @@ export default function ComunicacionPage() {
                   >
                     <option value="">-- Selecciona un alumno --</option>
                     {students.map(s => (
-                      <option key={s.id} value={s.id}>{s.nombre} ({s.curso})</option>
+                      <option key={s.id} value={s.id}>{s.name} ({s.curso})</option>
                     ))}
                   </select>
                 </div>
@@ -904,7 +904,7 @@ export default function ComunicacionPage() {
                               }}
                             >
                               <div>
-                                <strong style={{ display: 'block', fontSize: '11.5px', color: 'var(--text-primary)' }}>{stud.nombre}</strong>
+                                <strong style={{ display: 'block', fontSize: '11.5px', color: 'var(--text-primary)' }}>{stud.name}</strong>
                                 <span style={{ fontSize: '9px', color: 'var(--text-secondary)' }}>Tutor: {stud.tutor || 'No registrado'}</span>
                               </div>
                               <span style={{ fontSize: '9.5px', color: '#64748b', fontWeight: '500' }}>Sin ver</span>

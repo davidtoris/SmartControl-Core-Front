@@ -8,7 +8,7 @@ import {
   Sun, Moon, ClipboardList
 } from 'lucide-react';
 import { useAppStore } from '../store/useAppStore';
-import type { ExamAttempt } from '../store/useAppStore';
+import type { ExamAttempt, Question } from '../store/useAppStore';
 
 export const examQuestions = [
   {

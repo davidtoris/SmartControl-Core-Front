@@ -67,6 +67,8 @@ const contactSchema = z.object({
   path: ['tutorCorreo']
 });
 
+type ContactFormData = z.infer<typeof contactSchema>;
+
 const generateUUID = () => {
   if (typeof window !== 'undefined' && window.crypto && window.crypto.randomUUID) {
     try {
@@ -418,7 +420,7 @@ export default function InscripcionPage() {
       }
 
       // Iniciales nombre
-      const initials = values.nombre.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+      const initials = values.nombre.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase();
 
       const newStudent = {
         id: studentId,

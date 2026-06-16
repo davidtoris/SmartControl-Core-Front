@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { 
   UploadCloud, UserCheck, AlertTriangle, Check, X, Clock, 
-  BookOpen, FileText, Download, Bell, Calendar, Search, Users, AlertCircle, CheckCircle2
+  Bell, Calendar, Search, Users, CheckCircle2
 } from 'lucide-react';
 import { useAppStore } from '../store/useAppStore';
 import type { Student } from '../store/useAppStore';

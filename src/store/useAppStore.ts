@@ -210,9 +210,9 @@ export interface Servicio {
   descripcion?: string | null;
   duracionMeses: number;
   documentosRequeridos: string[];
-  documentosConfig?: { nombre: string; caracteristicas: string }[];
+  documentosConfig?: { nombre: string; caracteristicas: string; url?: string }[];
   materiales?: string[];
-  materialesConfig?: { nombre: string; caracteristicas: string }[];
+  materialesConfig?: { nombre: string; caracteristicas: string; url?: string }[];
   proceso?: string | null;
   tieneCertificado: boolean;
   requiereEvidencia: boolean;

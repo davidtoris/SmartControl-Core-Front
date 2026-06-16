@@ -274,7 +274,8 @@ export default function StudentDetailPage() {
         monto: valorCuota,
         fechaVencimiento,
         status,
-        fechaPago
+        fechaPago,
+        comprobanteUrl: null as string | null
       };
     });
   }, [selectedStudent]);
@@ -1461,7 +1462,7 @@ export default function StudentDetailPage() {
                               {cuota.comprobanteUrl && (
                                 <div style={{ marginTop: '8px' }}>
                                   <button
-                                    onClick={() => window.open(cuota.comprobanteUrl, '_blank')}
+                                    onClick={() => window.open(cuota.comprobanteUrl || undefined, '_blank')}
                                     style={{
                                       background: 'rgba(59, 130, 246, 0.1)',
                                       border: '1px solid rgba(59, 130, 246, 0.2)',
